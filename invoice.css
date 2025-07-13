@@ -1,12 +1,16 @@
-/* Global Styles */
 :root {
     --primary-color: #db2c24;
     --secondary-color: #ff914d;
     --text-color: #333;
     --border-color: #E0E0E0;
+<<<<<<< HEAD
     --background-color: #e7e6e6;
     /* Changed to light pink */
     --nav-text-color: #db2c24;
+=======
+    --background-color: #F5F5F5;
+    --nav-text-color: #E53935;
+>>>>>>> b4be8449eaa1fa4cfcfaa1dc3e603c159e4b6bc7
 }
 
 body {
@@ -18,6 +22,7 @@ body {
     color: var(--dark-gray);
 }
 
+<<<<<<< HEAD
 html {
     margin: 0;
     padding: 0;
@@ -30,6 +35,9 @@ html {
 }
 
 .top-nav {
+=======
+.main-nav {
+>>>>>>> b4be8449eaa1fa4cfcfaa1dc3e603c159e4b6bc7
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -158,7 +166,6 @@ h1 {
     text-align: center;
 }
 
-/* Main Content Styles */
 .invoice-management {
     padding: 2rem;
     max-width: 1200px;
@@ -194,8 +201,12 @@ h1 {
     background: var(--secondary-color);
 }
 
+<<<<<<< HEAD
 /* Button Styles */
 .btn {
+=======
+.btn-primary {
+>>>>>>> b4be8449eaa1fa4cfcfaa1dc3e603c159e4b6bc7
     background: var(--primary-color);
     color: white;
     border: none;
@@ -216,7 +227,6 @@ h1 {
     cursor: pointer;
 }
 
-/* Filters Card Styles */
 .filters-card {
     background: white;
     border-radius: 8px;
@@ -256,7 +266,6 @@ h1 {
     min-width: 200px;
 }
 
-/* Search Bar Styles */
 .search-bar {
     margin-bottom: 2rem;
     max-width: 30%;
@@ -283,7 +292,6 @@ h1 {
     color: #666;
 }
 
-/* Table Styles */
 .invoice-table {
     background: white;
     border-radius: 8px;
@@ -313,7 +321,6 @@ td {
     color: var(--text-color);
 }
 
-/* Status Styles */
 .status-draft {
     background-color: #FFB74D;
     color: white;
@@ -338,7 +345,6 @@ td {
     font-size: 0.9rem;
 }
 
-/* Operation Buttons */
 .operations {
     display: flex;
     gap: 0.5rem;
@@ -356,7 +362,6 @@ td {
     color: var(--primary-color);
 }
 
-/* Responsive Design */
 @media (max-width: 1200px) {
     .filters {
         gap: 1rem;
