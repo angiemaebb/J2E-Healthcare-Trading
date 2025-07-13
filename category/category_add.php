@@ -6,7 +6,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
     <link rel="icon" href="images/J2E logo favicon.png" type="image/x-icon">
-    <title>Category Management - J2E Healthcare</title>
+    <title>Add Category - J2E Healthcare</title>
     <style>
         :root {
             --main-color: #db2c24;
