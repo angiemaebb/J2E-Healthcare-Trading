@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J2E Healthcare Trading - Add New Client</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="addNewClient.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="main-nav">
+        <div class="nav-left">
+            <img src="invoiceIcons/J2E logo favicon.png" alt="J2E Healthcare Trading" class="logo">
+            <span class="company-name">J2E Healthcare Trading</span>
+        </div>
+        <div class="nav-center">
+            <a href="#" class="nav-item"><i class="material-icons">home</i> Home</a>
+            <a href="#" class="nav-item"><i class="material-icons">inventory_2</i> Inventory</a>
+            <a href="#" class="nav-item"><i class="material-icons">category</i> Category</a>
+            <a href="#" class="nav-item"><i class="material-icons">person</i> User</a>
+            <a href="#" class="nav-item active"><i class="material-icons">receipt</i> Invoice</a>
+        </div>
+        <div class="nav-right">
+            <div class="user-info">
+                <i class="material-icons">account_circle</i>
+                <span class="username">Username</span>
+            </div>
+            <button class="menu-button"><i class="material-icons">menu</i></button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>Add New Client Information</h1>
+        
+        <div class="back-button">
+            <button onclick="window.location.href='invoice.html'" class="invoice-management">← Invoice Management</button>
+        </div>
+
+        <div class="form-container">
+            <form id="newClientForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="invoiceNo">Invoice No.</label>
+                        <input type="text" id="invoiceNo" name="invoiceNo">
+                    </div>
+                    <div class="form-group">
+                        <label for="oscaPwdId">OSCA/PWD ID No.</label>
+                        <input type="text" id="oscaPwdId" name="oscaPwdId">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="clientName">Client Name</label>
+                        <input type="text" id="clientName" name="clientName">
+                    </div>
+                    <div class="form-group">
+                        <label for="signature">SC/PWD Signature</label>
+                        <select id="signature" name="signature">
+                            <option value="">- Insert -</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tin">TIN</label>
+                        <input type="text" id="tin" name="tin">
+                    </div>
+                    <div class="form-group">
+                        <label for="cashier">Cashier/ Authorized Representative</label>
+                        <input type="text" id="cashier" name="cashier">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <input type="text" id="address" name="address">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="businessStyle">Business Style</label>
+                        <input type="text" id="businessStyle" name="businessStyle">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="save-btn">Save New Client</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

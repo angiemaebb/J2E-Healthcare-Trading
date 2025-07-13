@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J2E Healthcare Trading - Add New Invoice</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="addNewInvoice.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="main-nav">
+        <div class="nav-left">
+            <img src="invoiceIcons/J2E logo favicon.png" alt="J2E Healthcare Trading" class="logo">
+            <span class="company-name">J2E Healthcare Trading</span>
+        </div>
+        <div class="nav-center">
+            <a href="#" class="nav-item"><i class="material-icons">home</i> Home</a>
+            <a href="#" class="nav-item"><i class="material-icons">inventory_2</i> Inventory</a>
+            <a href="#" class="nav-item"><i class="material-icons">category</i> Category</a>
+            <a href="#" class="nav-item"><i class="material-icons">person</i> User</a>
+            <a href="#" class="nav-item active"><i class="material-icons">receipt</i> Invoice</a>
+        </div>
+        <div class="nav-right">
+            <div class="user-info">
+                <i class="material-icons">account_circle</i>
+                <span class="username">Username</span>
+            </div>
+            <button class="menu-button"><i class="material-icons">menu</i></button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="add-invoice-container">
+        <h1 class="page-title">Add New Invoice</h1>
+        
+        <!-- Invoice Management Button -->
+        <div class="management-button">
+            <a href="invoice.html" class="btn-back">
+                <i class="material-icons">keyboard_backspace</i>
+                Invoice Management
+            </a>
+        </div>
+
+        <!-- Invoice Form -->
+        <div class="invoice-form">
+            <!-- Invoice Header Information -->
+            <div class="form-header">
+                <div class="form-group">
+                    <label>Invoice No.</label>
+                    <input type="text" placeholder="Enter invoice number">
+                </div>
+                <div class="form-group">
+                    <label>Client Name</label>
+                    <input type="text" placeholder="Enter client name">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date</label>
+                        <div class="date-input">
+                            <div class="calendar-icon">
+                                <i class="material-icons">calendar_today</i>
+                            </div>
+                            <input type="date" placeholder="00/00/0000">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Total Due</label>
+                        <div class="amount-input header-amount">
+                            <div class="currency-icon">
+                                <span class="currency">₱</span>
+                            </div>
+                            <input type="text" placeholder="00.00">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <div class="date-input">
+                            <div class="calendar-icon">
+                                <i class="material-icons">calendar_today</i>
+                            </div>
+                            <input type="date" placeholder="00/00/0000">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Balance</label>
+                        <div class="amount-input header-amount">
+                            <div class="currency-icon">
+                                <span class="currency">₱</span>
+                            </div>
+                            <input type="text" placeholder="00.00">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select>
+                        <option value="" disabled selected>- Select -</option>
+                        <option value="draft">Draft</option>
+                        <option value="partial">Partial Payment</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Invoice Items Table -->
+            <div class="invoice-items">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>QUANTITY</th>
+                            <th>UNIT</th>
+                            <th>ARTICLES</th>
+                            <th>UNIT PRICE</th>
+                            <th>AMOUNT</th>
+                            <th>TOTAL SALES</th>
+                            <th>LESS: SC/PWD-DISCOUNT</th>
+                            <th>TOTAL DUE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" class="quantity" placeholder="quantity"></td>
+                            <td><input type="text" class="unit" placeholder="unit"></td>
+                            <td><input type="text" class="article" placeholder="Article 1"></td>
+                            <td>
+                                <div class="amount-input">
+                                    <input type="text">
+                                </div>
+                            </td>
+                            <td>
+                                <div class="amount-input">
+                                    <input type="text">
+                                </div>
+                            </td>
+                            <td>
+                                <div class="amount-input">
+                                    <input type="text">
+                                </div>
+                            </td>
+                            <td>
+                                <div class="amount-input">
+                                    <input type="text">
+                                </div>
+                            </td>
+                            <td>
+                                <div class="amount-input">
+                                    <input type="text">
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Save Button -->
+            <div class="form-actions">
+                <button class="btn-save">
+                    <i class="material-icons">save</i>
+                    Save New Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
