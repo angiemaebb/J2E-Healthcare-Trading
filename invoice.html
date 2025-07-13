@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J2E Healthcare Trading - Invoice Management</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="main-nav">
+        <div class="nav-left">
+            <img src="logo.png" alt="J2E Healthcare Trading" class="logo">
+            <span class="company-name">J2E Healthcare Trading</span>
+        </div>
+        <div class="nav-center">
+            <a href="#" class="nav-item"><i class="material-icons">home</i> Home</a>
+            <a href="#" class="nav-item"><i class="material-icons">inventory_2</i> Inventory</a>
+            <a href="#" class="nav-item"><i class="material-icons">category</i> Category</a>
+            <a href="#" class="nav-item"><i class="material-icons">person</i> User</a>
+            <a href="#" class="nav-item active"><i class="material-icons">receipt</i> Invoice</a>
+        </div>
+        <div class="nav-right">
+            <span class="username">Username</span>
+            <button class="menu-button"><i class="material-icons">menu</i></button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="invoice-management">
+        <!-- Page Header -->
+        <div class="header">
+            <h1>Invoice Management</h1>
+            <div class="header-actions">
+                <button class="btn-primary"><i class="material-icons">add</i> Add New Invoice</button>
+                <button class="btn-secondary"><i class="material-icons">person_add</i> Add New Client</button>
+                <button class="btn-outline">Export List</button>
+            </div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="filters-card">
+            <h2>All Invoices</h2>
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="begin-date">Begin Date</label>
+                    <input type="date" id="begin-date" placeholder="00/00/0000">
+                </div>
+                <div class="filter-group">
+                    <label for="end-date">End Date</label>
+                    <input type="date" id="end-date" placeholder="00/00/0000">
+                </div>
+                <div class="filter-group">
+                    <label for="status">Status</label>
+                    <select id="status">
+                        <option value="any">Any</option>
+                        <option value="draft">Draft</option>
+                        <option value="partial">Partial Payment</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="client">Client</label>
+                    <select id="client">
+                        <option value="any">Any</option>
+                        <option value="client1">Client 1</option>
+                        <option value="client2">Client 2</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <div class="search-input">
+                <i class="material-icons">search</i>
+                <input type="text" placeholder="Search client or invoice id...">
+            </div>
+        </div>
+
+        <!-- Invoices Table -->
+        <div class="invoice-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SELECT</th>
+                        <th>INVOICE NO.</th>
+                        <th>CLIENT NAME</th>
+                        <th>DATE</th>
+                        <th>DUE DATE</th>
+                        <th>TOTAL DUE</th>
+                        <th>BALANCE</th>
+                        <th>STATUS</th>
+                        <th>OPERATION</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Row 1 -->
+                    <tr>
+                        <td><input type="checkbox"></td>
+                        <td>1</td>
+                        <td>Client 1 <i class="material-icons">link</i></td>
+                        <td>00/00/00</td>
+                        <td>00/00/00</td>
+                        <td>₱00.00</td>
+                        <td>₱00.00</td>
+                        <td><span class="status-draft">Draft</span></td>
+                        <td class="operations">
+                            <button class="icon-button"><i class="material-icons">edit</i></button>
+                            <button class="icon-button"><i class="material-icons">delete</i></button>
+                        </td>
+                    </tr>
+                    <!-- Row 2 -->
+                    <tr>
+                        <td><input type="checkbox"></td>
+                        <td>2</td>
+                        <td>Client 2 <i class="material-icons">link</i></td>
+                        <td>00/00/00</td>
+                        <td>00/00/00</td>
+                        <td>₱00.00</td>
+                        <td>₱00.00</td>
+                        <td><span class="status-partial">Partial Payment</span></td>
+                        <td class="operations">
+                            <button class="icon-button"><i class="material-icons">edit</i></button>
+                            <button class="icon-button"><i class="material-icons">delete</i></button>
+                        </td>
+                    </tr>
+                    <!-- Row 3 -->
+                    <tr>
+                        <td><input type="checkbox"></td>
+                        <td>3</td>
+                        <td>Client 1 <i class="material-icons">link</i></td>
+                        <td>00/00/00</td>
+                        <td>00/00/00</td>
+                        <td>₱00.00</td>
+                        <td>₱00.00</td>
+                        <td><span class="status-paid">Paid</span></td>
+                        <td class="operations">
+                            <button class="icon-button"><i class="material-icons">edit</i></button>
+                            <button class="icon-button"><i class="material-icons">delete</i></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
