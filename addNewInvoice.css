@@ -1,14 +1,12 @@
-/* Import Global Styles from invoice.css */
 :root {
     --primary-color: #E53935;
     --secondary-color: #FF7043;
     --text-color: #333;
     --border-color: #E0E0E0;
-    --background-color: #FFE6E6; /* Changed to light pink */
+    --background-color: #FFE6E6;
     --nav-text-color: #E53935;
 }
 
-/* Reuse Navigation Styles */
 .main-nav {
     display: flex;
     justify-content: space-between;
@@ -103,7 +101,6 @@
     font-size: 24px;
 }
 
-/* Add New Invoice Specific Styles */
 body {
     font-family: 'Segoe UI', Arial, sans-serif;
     margin: 0;
@@ -132,16 +129,16 @@ body {
     align-items: center;
     gap: 0.5rem;
     text-decoration: none;
-    color: white; /* Changed to white */
+    color: white;
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: 4px;
-    background-color: var(--primary-color); /* Changed to red */
+    background-color: var(--primary-color);
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .btn-back:hover {
-    background-color: #d32f2f; /* Darker red on hover */
+    background-color: #d32f2f;
 }
 
 .invoice-form {
@@ -208,12 +205,10 @@ body {
     border: none;
     padding: 0.75rem;
     width: 100%;
-    /* Hide the native calendar icon */
     -webkit-calendar-picker-indicator: none;
     -webkit-appearance: none;
 }
 
-/* Hide native calendar icon in different browsers */
 .date-input input[type="date"]::-webkit-calendar-picker-indicator {
     display: none;
     -webkit-appearance: none;
@@ -225,7 +220,6 @@ body {
     margin: 0;
 }
 
-/* Amount input styles for the header section */
 .header-amount {
     border: 1px solid var(--border-color);
     border-radius: 4px;
@@ -237,7 +231,6 @@ body {
     padding: 0.75rem;
 }
 
-/* Regular amount input styles (for table) */
 .amount-input {
     position: relative;
     display: flex;
@@ -251,7 +244,6 @@ body {
     border-radius: 4px;
 }
 
-/* Currency icon styles (only for header) */
 .currency-icon {
     display: flex;
     align-items: center;
@@ -261,19 +253,16 @@ body {
     width: 20px;
 }
 
-/* Currency symbol styles */
 .currency {
     color: #666;
     font-weight: 500;
 }
 
-/* Position currency symbol for table inputs */
 .amount-input:not(.header-amount) .currency {
     position: absolute;
     left: 0.75rem;
 }
 
-/* Invoice Items Table Styles */
 .invoice-items {
     margin-top: 2rem;
     overflow-x: auto;
@@ -311,7 +300,6 @@ body {
     width: 100%;
 }
 
-/* Save Button Styles */
 .form-actions {
     margin-top: 2rem;
     display: flex;
@@ -337,7 +325,6 @@ body {
     background-color: #d32f2f;
 }
 
-/* Responsive Styles */
 @media (max-width: 768px) {
     .add-invoice-container {
         padding: 1rem;
