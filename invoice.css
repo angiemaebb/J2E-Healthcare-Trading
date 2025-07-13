@@ -1,11 +1,10 @@
-/* Global Styles */
 :root {
     --primary-color: #E53935;
     --secondary-color: #FF7043;
     --text-color: #333;
     --border-color: #E0E0E0;
     --background-color: #F5F5F5;
-    --nav-text-color: #E53935;  /* Red color for navigation */
+    --nav-text-color: #E53935;
 }
 
 body {
@@ -16,7 +15,6 @@ body {
     color: var(--text-color);
 }
 
-/* Navigation Styles */
 .main-nav {
     display: flex;
     justify-content: space-between;
@@ -111,7 +109,6 @@ body {
     font-size: 24px;
 }
 
-/* Main Content Styles */
 .invoice-management {
     padding: 2rem;
 }
@@ -133,7 +130,6 @@ body {
     gap: 1rem;
 }
 
-/* Button Styles */
 .btn-primary {
     background: var(--primary-color);
     color: white;
@@ -167,7 +163,6 @@ body {
     cursor: pointer;
 }
 
-/* Filters Card Styles */
 .filters-card {
     background: white;
     border-radius: 8px;
@@ -207,7 +202,6 @@ body {
     min-width: 200px;
 }
 
-/* Search Bar Styles */
 .search-bar {
     margin-bottom: 2rem;
 }
@@ -233,7 +227,6 @@ body {
     color: #666;
 }
 
-/* Table Styles */
 .invoice-table {
     background: white;
     border-radius: 8px;
@@ -262,7 +255,6 @@ td {
     color: var(--text-color);
 }
 
-/* Status Styles */
 .status-draft {
     background-color: #FFB74D;
     color: white;
@@ -287,7 +279,6 @@ td {
     font-size: 0.9rem;
 }
 
-/* Operation Buttons */
 .operations {
     display: flex;
     gap: 0.5rem;
@@ -305,7 +296,6 @@ td {
     color: var(--primary-color);
 }
 
-/* Responsive Design */
 @media (max-width: 1200px) {
     .filters {
         gap: 1rem;
