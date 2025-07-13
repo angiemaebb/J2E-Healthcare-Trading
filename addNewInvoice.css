@@ -3,7 +3,6 @@
     --secondary-color: #ff914d;
     --text-color: #333;
     --border-color: #E0E0E0;
-<<<<<<< HEAD
     --background-color: #e7e6e6;
     /* Changed to light pink */
     --nav-text-color: #db2c24;
@@ -30,13 +29,6 @@ html {
 }
 
 .top-nav {
-=======
-    --background-color: #FFE6E6;
-    --nav-text-color: #E53935;
-}
-
-.main-nav {
->>>>>>> b4be8449eaa1fa4cfcfaa1dc3e603c159e4b6bc7
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -182,7 +174,8 @@ body {
 
 .page-title {
     color: var(--primary-color);
-    margin: 0 0 1.5rem 0;border-bottom: 2px solid var(--primary-color);
+    margin: 0 0 1.5rem 0;
+    border-bottom: 2px solid var(--primary-color);
 }
 
 .management-button {
@@ -195,28 +188,17 @@ body {
     gap: 0.5rem;
     text-decoration: none;
     color: white;
-<<<<<<< HEAD
-    /* Changed to white */
-=======
->>>>>>> b4be8449eaa1fa4cfcfaa1dc3e603c159e4b6bc7
+
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: 4px;
     background-color: var(--primary-color);
-<<<<<<< HEAD
-    /* Changed to red */
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-=======
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
->>>>>>> b4be8449eaa1fa4cfcfaa1dc3e603c159e4b6bc7
 }
 
 .btn-back:hover {
-    background-color: #d32f2f;
-<<<<<<< HEAD
-    /* Darker red on hover */
-=======
->>>>>>> b4be8449eaa1fa4cfcfaa1dc3e603c159e4b6bc7
+    background-color: var(--secondary-color);
+    font-weight: bold;
 }
 
 .invoice-form {
@@ -400,7 +382,8 @@ body {
 }
 
 .btn-save:hover {
-    background-color: #d32f2f;
+    background-color: var(--secondary-color);
+    font-weight: bold;
 }
 
 @media (max-width: 768px) {
