@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;400;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="/images/J2E logo favicon.png" type="image/x-icon">
+    <title>J2E Healthcare Trading - Log In</title>
+    <style>
+        :root {
+            --main-color: #db2c24;
+            --secondary-color: #ff914d;
+            --shadow: #8d8d8d;
+            --text-color: #666;
+        }
+
+        body,
+        html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Montserrat', sans-serif;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            background-image: url(/images/background.png);
+            background-size: cover;
+            background-position: center;
+        }
+
+        .left-side {
+            width: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 0;
+        }
+
+        .logo-container {
+            width: auto;
+            max-width: 600px;
+            margin-left: -7%;
+            z-index: 1;
+            padding: 10%;
+        }
+
+        .logo-container img {
+            width: 100%;
+            height: auto;
+        }
+
+        .right-side {
+            width: 55%;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-top-left-radius: 3rem;
+            border-bottom-left-radius: 3rem;
+            box-shadow: -15px 0 60px -15px var(--shadow);
+            z-index: 1;
+            margin-left: -5%;
+
+        }
+
+        form {
+            max-width: 500px;
+            width: 80%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        h2 {
+            margin: 0 0 1rem 0;
+            font-size: 2.5rem;
+            color: var(--main-color);
+        }
+
+        label {
+            font-weight: bold;
+            color: var(--main-color);
+            margin-bottom: 0.5rem;
+        }
+
+        input {
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--main-color);
+        }
+
+        button {
+            background-color: var(--main-color);
+            color: white;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background-color: var(--secondary-color);
+            font-weight: bold;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1rem;
+        }
+
+        .footer-text {
+            text-align: center;
+            color: var(--text-color);
+            margin-top: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .link {
+            color: var(--main-color);
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        .link:hover {
+            text-decoration: underline;
+            font-weight: bold;
+        }
+
+        .error-message {
+            color: var(--main-color);
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        input.error {
+            border-color: var(--main-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="left-side">
+            <div class="logo-container"><img src="/images/J2E logo.png" alt="J2E Logo"></div>
+        </div>
+        <div class="right-side">
+            <form id="login-form">
+                <h2>Welcome back!</h2>
+                
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" name="username" placeholder="Enter your Username" required autocomplete="username" />
+                    <div id="username-error" class="error-message">Please enter your username</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password" placeholder="Enter your Password" required autocomplete="current-password" />
+                    <div id="password-error" class="error-message">Please enter your password</div>
+                </div>
+
+                <button type="submit" aria-label="Login">Login</button>
+                
+                <div class="footer-links">
+                    <a href="/authenticate/signup.html" class="link">Create account</a>
+                    <a href="/authenticate/forgot-password.html" class="link">Forgot password?</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('login-form');
+            const usernameInput = document.getElementById('login-username');
+            const passwordInput = document.getElementById('login-password');
+            const usernameError = document.getElementById('username-error');
+            const passwordError = document.getElementById('password-error');
+
+            function validateUsername() {
+                const isValid = usernameInput.value.trim() !== '';
+                usernameInput.classList.toggle('error', !isValid);
+                usernameError.style.display = isValid ? 'none' : 'block';
+                return isValid;
+            }
+
+            function validatePassword() {
+                const isValid = passwordInput.value.trim() !== '';
+                passwordInput.classList.toggle('error', !isValid);
+                passwordError.style.display = isValid ? 'none' : 'block';
+                return isValid;
+            }
+
+            usernameInput.addEventListener('input', validateUsername);
+            passwordInput.addEventListener('input', validatePassword);
+
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const isUsernameValid = validateUsername();
+                const isPasswordValid = validatePassword();
+                
+                if (isUsernameValid && isPasswordValid) {
+                    console.log('Login submitted with:', {
+                        username: usernameInput.value,
+                        password: passwordInput.value
+                    });
+                    
+                    
+                    setTimeout(() => {
+                        window.location.href = '/home/dashboard.html';
+                    }, 1000);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
