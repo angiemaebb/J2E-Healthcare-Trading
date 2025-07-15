@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J2E Healthcare Trading - Edit Invoice</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #E53935;
+            --secondary-color: #FF7043;
+            --text-color: #333;
+            --border-color: #E0E0E0;
+            --background-color: #F5F5F5;
+            --nav-text-color: #E53935;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        .main-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 2rem;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            height: 40px;
+        }
+
+        .company-name {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+
+        .nav-center {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: var(--nav-text-color);
+            padding: 0.5rem;
+            font-weight: 500;
+        }
+
+        .nav-item i {
+            font-size: 24px;
+        }
+
+        .nav-item.active {
+            color: var(--primary-color);
+            position: relative;
+        }
+
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--primary-color);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--nav-text-color);
+        }
+
+        .user-info i {
+            font-size: 24px;
+        }
+
+        .username {
+            font-weight: 500;
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: var(--nav-text-color);
+            cursor: pointer;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .menu-button i {
+            font-size: 24px;
+        }
+
+        .edit-invoice-container {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-title {
+            color: var(--primary-color);
+            margin: 0 0 1.5rem 0;
+        }
+
+        .management-button {
+            margin-bottom: 2rem;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: white;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            background-color: var(--primary-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .invoice-form {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .form-header {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1rem;
+            background: white;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .form-row .form-group[style*="flex: 1"] {
+            grid-column: 1 / -1;
+        }
+
+        .date-input {
+            position: relative;
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .calendar-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .calendar-icon:hover {
+            background-color: #e0e0e0;
+        }
+
+        .calendar-icon i {
+            color: #666;
+            font-size: 20px;
+        }
+
+        .date-input input[type="date"] {
+            border: none;
+            padding: 0.75rem;
+            width: 100%;
+            background: white;
+            -webkit-calendar-picker-indicator: none;
+            -webkit-appearance: none;
+        }
+
+        .date-input input[type="date"]::-webkit-calendar-picker-indicator {
+            display: none;
+            -webkit-appearance: none;
+        }
+
+        .date-input input[type="date"]::-webkit-inner-spin-button,
+        .date-input input[type="date"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .amount-input {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .currency-icon {
+            position: absolute;
+            left: 0.75rem;
+            color: #666;
+        }
+
+        .amount-input input {
+            width: 100%;
+            padding: 0.75rem 0.75rem 0.75rem 2rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: white;
+        }
+
+        .invoice-items {
+            margin-top: 2rem;
+            overflow-x: auto;
+        }
+
+        .invoice-items table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+
+        .invoice-items th {
+            background-color: #f5f5f5;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 500;
+            color: var(--text-color);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .invoice-items td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .invoice-items input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .form-actions {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-save {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-save:hover {
+            background-color: #d32f2f;
+        }
+
+        @media (max-width: 768px) {
+            .edit-invoice-container {
+                padding: 1rem;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .nav-center {
+                display: none;
+            }
+            .invoice-items {
+                margin: 1rem -1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .company-name {
+                display: none;
+            }
+            .nav-right .username {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="main-nav">
+        <div class="nav-left">
+            <img src="invoiceIcons/J2E logo favicon.png" alt="J2E Healthcare Trading" class="logo">
+            <span class="company-name">J2E Healthcare Trading</span>
+        </div>
+        <div class="nav-center">
+            <a href="#" class="nav-item"><i class="material-icons">home</i> Home</a>
+            <a href="#" class="nav-item"><i class="material-icons">inventory_2</i> Inventory</a>
+            <a href="#" class="nav-item"><i class="material-icons">category</i> Category</a>
+            <a href="#" class="nav-item"><i class="material-icons">person</i> User</a>
+            <a href="#" class="nav-item active"><i class="material-icons">receipt</i> Invoice</a>
+        </div>
+        <div class="nav-right">
+            <div class="user-info">
+                <i class="material-icons">account_circle</i>
+                <span class="username">Username</span>
+            </div>
+            <button class="menu-button"><i class="material-icons">menu</i></button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="edit-invoice-container">
+        <h1 class="page-title">Edit Invoice</h1>
+        
+        <!-- Invoice Management Button -->
+        <div class="management-button">
+            <a href="invoice.html" class="btn-back">
+                <i class="material-icons">keyboard_backspace</i>
+                Invoice Management
+            </a>
+        </div>
+
+        <!-- Invoice Form -->
+        <div class="invoice-form">
+            <!-- Invoice Header Information -->
+            <div class="form-header">
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Invoice No.</label>
+                        <input type="text" value="1" style="background: white;">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Client Name</label>
+                        <input type="text" value="Client 1" style="background: white;">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date</label>
+                        <div class="date-input">
+                            <div class="calendar-icon">
+                                <i class="material-icons">calendar_today</i>
+                            </div>
+                            <input type="date" placeholder="00/00/0000" style="background: white;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Total Due</label>
+                        <div class="amount-input">
+                            <div class="currency-icon">₱</div>
+                            <input type="text" placeholder="00.00" style="background: white;">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <div class="date-input">
+                            <div class="calendar-icon">
+                                <i class="material-icons">calendar_today</i>
+                            </div>
+                            <input type="date" placeholder="00/00/0000" style="background: white;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Balance</label>
+                        <div class="amount-input">
+                            <div class="currency-icon">₱</div>
+                            <input type="text" placeholder="00.00" style="background: white;">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Status</label>
+                        <input type="text" value="Paid" style="background: white;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoice Items Table -->
+            <div class="invoice-items">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>QUANTITY</th>
+                            <th>UNIT</th>
+                            <th>ARTICLES</th>
+                            <th>UNIT PRICE</th>
+                            <th>AMOUNT</th>
+                            <th>TOTAL SALES</th>
+                            <th>LESS: SC/PWD-DISCOUNT</th>
+                            <th>TOTAL DUE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2</td>
+                            <td>pcs.</td>
+                            <td>NS704 Hinged Knee</td>
+                            <td>₱1,900.00</td>
+                            <td>₱3,800.00</td>
+                            <td>₱3,800.00</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>pcs.</td>
+                            <td>NB504 Neoprene Back Support</td>
+                            <td>₱1,900.00</td>
+                            <td>₱5,700.00</td>
+                            <td>₱11,525.00</td>
+                            <td>₱00.00</td>
+                            <td>₱11,525.00</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>pcs.</td>
+                            <td>WH301 Wrist Brace</td>
+                            <td>₱675.00</td>
+                            <td>₱2,025.00</td>
+                            <td>₱2,025.00</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Save Button -->
+            <div class="form-actions">
+                <button class="btn-save">
+                    <i class="material-icons">save</i>
+                    Save Edit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+    const calendarIcons = document.querySelectorAll('.calendar-icon');
+    calendarIcons.forEach(icon => {
+        icon.addEventListener('click', function(e) {
+            e.preventDefault();
+            const dateInput = this.parentElement.querySelector('input[type="date"]');
+            if (dateInput && typeof dateInput.showPicker === 'function') {
+                dateInput.showPicker();
+            } else {
+                dateInput.focus();
+            }
+        });
+    });
+});
+    </script>
+</body>
+</html>
