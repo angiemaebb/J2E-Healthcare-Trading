@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="icon" href="/images/J2E logo favicon.png" type="image/x-icon">
+    <link rel="icon" href="../images/J2E logo favicon.png" type="image/x-icon">
     <style>
         :root {
             --primary-color: #db2c24;
@@ -373,30 +373,30 @@
     <nav class="top-nav">
         <div class="nav-left">
             <div class="logo">
-                <img src="/images/J2E-logo2.png" alt="J2E Healthcare Trading Logo">
+                <img src="../images/J2E-logo2.png" alt="J2E Healthcare Trading Logo">
             </div>
         </div>
-
+        
         <div class="nav-center">
             <ul class="nav-menu">
-                <li><a href="/home/dashboard.html"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="/inventory/inventory.html"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="/category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="/user/user_management.html"><i class="fas fa-solid fa-user"></i> User</a></li>
-                <li><a href="/invoice/invoice.html" class="active"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+                <li><a href="../home/dashboard.html"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="../inventory/inventory.html"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="../user/user_management.html"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <li><a href="../invoice/invoice.html" class="active"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
 
         <div class="nav-right">
             <div class="user-info">
-                <img src="/images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
+                <img src="../images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
                 <span class="username">Username</span>
                 <button class="hamburger" id="menuDropdown">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="/menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="/menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
+                    <a href="../menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="../menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
                     <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
@@ -409,7 +409,7 @@
         <div class="header">
             <h1>Invoice Management</h1>
             <div class="header-actions">
-                <a href="/invoice/invoice_add.html"><button class="btn"><i class="material-icons">add</i> Add New
+                <a href="../invoice/invoice_add.html"><button class="btn"><i class="material-icons">add</i> Add New
                         Invoice</button></a>
                 <a href=""><button class="btn"><i class="material-icons">person_add</i> Add New Client</button></a>
                 <button class="btn-outline"><i class="fas fa-download"></i> Export List</button>
@@ -547,7 +547,7 @@
         document.getElementById('logoutBtn').addEventListener('click', function (e) {
             e.preventDefault();
             alert('Logging out....');
-            window.location.href = '/authenticate/login.html';
+            window.location.href = '../authenticate/login.html';
         });
     </script>
 </body>

@@ -474,7 +474,7 @@
     <nav class="top-nav">
         <div class="nav-left">
             <div class="logo">
-                <img src="/images/J2E-logo2.png" alt="J2E Healthcare Trading Logo">
+                <img src="../images/J2E-logo2.png" alt="J2E Healthcare Trading Logo">
             </div>
         </div>
 

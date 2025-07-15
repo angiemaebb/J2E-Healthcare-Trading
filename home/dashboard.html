@@ -6,8 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="icon" href="/images/J2E logo favicon.png" type="image/x-icon">
-    <base href="/J2E-Healthcare-Trading/">
+    <link rel="icon" href="../images/J2E logo favicon.png" type="image/x-icon">
     <title>J2E Healthcare Trading - Home</title>
     <style>
         :root {
@@ -584,7 +583,7 @@
             right: 50%;
             margin-left: -50vw;
             margin-right: -50vw;
-            background-image: url(/images/footerBackground.png);
+            background-image: url('../images/footerBackground.png');
             background-position: 60%;
             background-size: cover;
             height: 300px;
@@ -658,24 +657,24 @@
 <body>
     <nav class="top-nav">
         <div class="nav-left">
-            <div class="logo">
-                <img src="/images/J2E-logo2.png" alt="J2E Healthcare Trading Logo">
-            </div>
+            <a href="#" class="logo">
+                <img src="../images/J2E-logo2.png" alt="J2E Logo">
+            </a>
         </div>
 
         <div class="nav-center">
             <ul class="nav-menu">
-                <li><a href="/home/dashboard.html" class="active"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="/inventory/inventory.html"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="/category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="/user/user_management.html"><i class="fas fa-solid fa-user"></i> User</a></li>
-                <li><a href="/invoice/invoice.html"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+                <li><a href="../home/dashboard.html" class="active"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="../inventory/inventory.html"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="../user/user_management.html"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <li><a href="../invoice/invoice.html"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
 
         <div class="nav-right">
             <div class="user-info">
-                <img src="/images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
+                <img src="../images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
                 <span class="username">Username</span>
                 <button class="hamburger" id="menuDropdown">
                     <i class="fas fa-bars"></i>
@@ -690,9 +689,9 @@
     </nav>
 
     <div class="video-background">
-        <video autoplay muted loop playsinline>
-            <source src="/images/background.mp4" type="video/mp4">
-            <img src="/images/video-fallback.jpg" alt="Background">
+        <video autoplay muted loop playsinline poster="../images/video-fallback.png">
+            <source src="../images/background.mp4" type="video/mp4">
+            Your browser does not support the video tag.
         </video>
         <div class="video-overlay"></div>
     </div>
@@ -867,7 +866,7 @@
             <div class="footer-container">
                 <div class="footer-content">
                     <div class="footer-left">
-                        <img src="/images/J2E-logo3.png">
+                        <img src="../images/J2E-logo3.png">
                     </div>
                     <div class="footer-right">
                         <div>
@@ -981,7 +980,7 @@
                 video.play().catch(e => {
                     console.log("Video autoplay prevented, showing fallback");
                     video.style.display = 'none';
-                    document.querySelector('.video-background').style.backgroundImage = 'url(/images/video-fallback.jpg)';
+                    document.querySelector('.video-background').style.backgroundImage = 'url(../images/video-fallback.jpg)';
                 });
             }
         });
