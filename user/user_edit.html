@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>J2E Healthcare Trading - Add New User</title>
+    <title>J2E Healthcare Trading - Edit User</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -175,58 +174,16 @@
             padding: 0.5rem 1rem;
             border-radius: 4px;
             cursor: pointer;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            font-weight: 500;
+            text-decoration: none;
         }
         .btn:hover {
             font-weight: bold;
             background: var(--secondary-color);
         }
-        .btn-outline {
-            background: white;
-            color: var(--dark-gray);
-            border: 1px solid var(--border-color);
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .btn-outline:hover {
-            background-color: grey;
-            color: white;
-            border: none;
-        }
-        .btn-group {
-            display: flex;
-        }
-        .btn-role {
-            background-color: white;
-            color: var(--dark-gray);
-            border: 1px solid var(--border-color);
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .btn-role:first-child {
-            border-top-right-radius: 0;
-            border-bottom-right-radius: 0;
-        }
-        .btn-role:last-child {
-            border-top-left-radius: 0;
-            border-bottom-left-radius: 0;
-            border-left: none;
-        }
-        .btn-role.active {
-            background-color: var(--primary-color);
-            color: white;
-            font-weight: bold;
-            border-color: var(--primary-color);
-        }
-        .btn-role:hover:not(.active) {
-            background-color: var(--light-gray);
-        }
-        /* Add User Form Styles */
         .add-user-form-wrapper {
             background: white;
             border-radius: 8px;
@@ -290,7 +247,7 @@
         .form-group label {
             width: 120px;
             font-weight: 500;
-            color: var(--text-color);
+            color: var(--dark-gray);
         }
         .form-group input,
         .form-group select {
@@ -340,13 +297,12 @@
         }
     </style>
 </head>
-
 <body>
     <!-- Navigation Header -->
     <nav class="top-nav">
         <div class="nav-left">
             <div class="logo">
-                <img src="../images/J2E-logo2.png" alt="J2E Healthcare Trading Logo">
+                <img src="/images/J2E-logo2.png" alt="J2E Healthcare Trading Logo">
             </div>
         </div>
         <div class="nav-center">
@@ -360,7 +316,7 @@
         </div>
         <div class="nav-right">
             <div class="user-info">
-                <img src="../images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
+                <img src="/images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
                 <span class="username">Username</span>
                 <button class="hamburger" id="menuDropdown">
                     <i class="fas fa-bars"></i>
@@ -377,7 +333,7 @@
     <div class="user-management">
         <!-- Page Header -->
         <div class="header">
-            <h1>Add New User</h1>
+            <h1>Edit User</h1>
         </div>
         <div style="margin-bottom: 2rem;">
             <a href="/user/user_management.html" class="btn" style="background: var(--primary-color); color: white; display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; font-weight: 500; padding: 0.5rem 1rem; border-radius: 4px;">
@@ -394,34 +350,40 @@
                     <input type="file" id="userImage" name="userImage" accept="image/*">
                 </label>
             </div>
-            <form class="user-form-fields" id="addUserForm" autocomplete="off">
+            <form class="user-form-fields" id="editUserForm" autocomplete="off">
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" placeholder="Enter username" required>
+                    <input type="text" id="username" name="username" value="Employee 1" required style="border: 2px solid #a259ff;">
                 </div>
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" placeholder="Enter email" required>
+                    <input type="email" id="email" name="email" value="employee1@j2e.ph" required>
                 </div>
                 <div class="form-group">
                     <label for="mobile">Mobile</label>
                     <div class="mobile-group">
                         <span class="country-code"><span class="material-icons" style="font-size:18px;vertical-align:middle;">flag</span>+63</span>
-                        <input type="tel" id="mobile" name="mobile" placeholder="9XXXXXXXXX" pattern="[0-9]{10}" maxlength="10" required style="border-radius:0 4px 4px 0;">
+                        <input type="tel" id="mobile" name="mobile" value="917 123 4567" pattern="[0-9 ]{11,12}" maxlength="12" required style="border-radius:0 4px 4px 0;">
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="role">Role</label>
                     <select id="role" name="role" required>
-                        <option value="">- Select -</option>
+                        <option value="employee" selected>Employee</option>
                         <option value="admin">Admin</option>
-                        <option value="employee">Employee</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status" required>
+                        <option value="active" selected>Active</option>
+                        <option value="inactive">Inactive</option>
                     </select>
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn-save">
+                    <button type="submit" class="btn-save" style="background-color: var(--primary-color); color: white;">
                         <i class="material-icons">save</i>
-                        Save New User
+                        Save Edit
                     </button>
                 </div>
             </form>
@@ -469,11 +431,10 @@
             }
         });
         // Optional: Prevent form submission for demo
-        document.getElementById('addUserForm').addEventListener('submit', function(e) {
+        document.getElementById('editUserForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            alert('User saved! (Demo)');
+            alert('User edit saved! (Demo)');
         });
     </script>
 </body>
-
-</html>
+</html> 

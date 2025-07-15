@@ -465,9 +465,9 @@
                     <button type="button" class="btn-role" data-role="Employees">Employees</button>
                     <button type="button" class="btn-role" data-role="Admin">Admins</button>
                 </div>
-                <a href="/user/user_add.html"><button class="btn admin-only" id="addUserBtn" style="padding: 12px;"><i
+                <a href="/user/user_add.html"><button class="btn" id="addUserBtn" style="padding: 12px;"><i
                             class="fas fa-plus"></i> Add New User</button></a>
-                <button class="btn-outline admin-only"><i class="fas fa-download"></i> Export List</button>
+                <button class="btn-outline"><i class="fas fa-download"></i> Export List</button>
             </div>
             <div class="count-display">
                 <span>Total Employees: <span id="countTotal" class="count-value">0</span></span>
@@ -507,7 +507,7 @@
                         <td>Admin</td>
                         <td><span class="status-badge status-active">Active</span></td>
                         <td class="operations">
-                            <button class="icon-button"><i class="material-icons">edit</i></button>
+                            <a href="/user/user_edit.html" class="icon-button"><i class="material-icons">edit</i></a>
                             <button class="icon-button"><i class="material-icons">delete</i></button>
                         </td>
                     </tr>
@@ -520,7 +520,7 @@
                         <td>Employee</td>
                         <td><span class="status-badge status-active">Active</span></td>
                         <td class="operations">
-                            <button class="icon-button"><i class="material-icons">edit</i></button>
+                            <a href="/user/user_edit.html" class="icon-button"><i class="material-icons">edit</i></a>
                             <button class="icon-button"><i class="material-icons">delete</i></button>
                         </td>
                     </tr>
@@ -533,7 +533,7 @@
                         <td>Employee</td>
                         <td><span class="status-badge status-inactive">Inactive</span></td>
                         <td class="operations">
-                            <button class="icon-button"><i class="material-icons">edit</i></button>
+                            <a href="/user/user_edit.html" class="icon-button"><i class="material-icons">edit</i></a>
                             <button class="icon-button"><i class="material-icons">delete</i></button>
                         </td>
                     </tr>
@@ -571,20 +571,10 @@
                     });
 
                     updateCounts();
-                    updateAdminButtons();
                 });
             });
 
             // Show/hide admin-only buttons based on filter
-            function updateAdminButtons() {
-                const activeBtn = document.querySelector('[data-role].active');
-                const adminOnlyEls = document.querySelectorAll('.admin-only');
-                if (activeBtn && activeBtn.getAttribute('data-role') === 'Admin') {
-                    adminOnlyEls.forEach(el => el.style.display = 'inline-flex');
-                } else {
-                    adminOnlyEls.forEach(el => el.style.display = 'none');
-                }
-            }
 
             // User dropdown functionality
             function closeAllDropdowns(exceptElement) {
@@ -617,7 +607,6 @@
             // Initialize on page load
             document.addEventListener('DOMContentLoaded', function () {
                 updateCounts();
-                updateAdminButtons();
 
                 // Set Employees button as active by default
                 const defaultActiveBtn = document.querySelector('[data-role="Employees"]');
