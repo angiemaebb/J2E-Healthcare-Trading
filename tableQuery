@@ -10,3 +10,127 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 //For now integegrating all webpages into one. Filter out users
+
+//Categories Table
+CREATE TABLE categories (
+    category_id INT PRIMARY KEY AUTO_INCREMENT,
+    category_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_by INT,
+    FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+//Product Status Table (for tracking if product is active, discontinued, etc.)
+CREATE TABLE product_status (
+    status_id INT PRIMARY KEY AUTO_INCREMENT,
+    status_name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT
+);
+
+//Units of Measurement Table
+CREATE TABLE units (
+    unit_id INT PRIMARY KEY AUTO_INCREMENT,
+    unit_name VARCHAR(50) NOT NULL UNIQUE,
+    unit_symbol VARCHAR(10) NOT NULL
+);
+
+//Products Table
+CREATE TABLE products (
+    product_id INT PRIMARY KEY AUTO_INCREMENT,
+    sku VARCHAR(50) UNIQUE NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category_id INT,
+    unit_id INT,
+    status_id INT DEFAULT 1,
+    image_path VARCHAR(255),
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id),
+    FOREIGN KEY (unit_id) REFERENCES units(unit_id),
+    FOREIGN KEY (status_id) REFERENCES product_status(status_id),
+    FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+//Product Inventory Table (for tracking stock levels and prices)
+CREATE TABLE product_inventory (
+    inventory_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 0,
+    unit_price DECIMAL(10,2) NOT NULL,
+    reorder_level INT DEFAULT 0,
+    last_restock_date DATETIME,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+//Suppliers Table
+CREATE TABLE suppliers (
+    supplier_id INT PRIMARY KEY AUTO_INCREMENT,
+    supplier_name VARCHAR(255) NOT NULL,
+    contact_person VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    address TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+//Product Suppliers Table (Many-to-Many relationship between products and suppliers)
+CREATE TABLE product_suppliers (
+    product_id INT,
+    supplier_id INT,
+    supplier_sku VARCHAR(50),
+    supplier_price DECIMAL(10,2),
+    is_primary_supplier BOOLEAN DEFAULT FALSE,
+    last_supply_date DATETIME,
+    PRIMARY KEY (product_id, supplier_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(supplier_id)
+);
+
+//Invoices Table
+CREATE TABLE invoices (
+    invoice_id INT PRIMARY KEY AUTO_INCREMENT,
+    invoice_number VARCHAR(50) UNIQUE NOT NULL,
+    invoice_date DATETIME NOT NULL,
+    customer_name VARCHAR(255) NOT NULL,
+    customer_contact VARCHAR(255),
+    total_amount DECIMAL(10,2) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+//Invoice Items Table
+CREATE TABLE invoice_items (
+    invoice_item_id INT PRIMARY KEY AUTO_INCREMENT,
+    invoice_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+//Insert initial data for product status
+INSERT INTO product_status (status_name, description) VALUES
+('Active', 'Product is currently active and available'),
+('Discontinued', 'Product has been discontinued'),
+('Out of Stock', 'Product is temporarily out of stock'),
+('Coming Soon', 'Product will be available soon');
+
+//Insert initial data for units
+INSERT INTO units (unit_name, unit_symbol) VALUES
+('Piece', 'pc'),
+('Box', 'box'),
+('Pack', 'pack'),
+('Set', 'set'),
+('Unit', 'unit');
