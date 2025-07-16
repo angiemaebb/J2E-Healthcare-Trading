@@ -19,9 +19,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $response['message'] = 'Please enter both username and password';
         } else {
             try {
-                $stmt = $pdo->prepare("SELECT user_id, username, password_hash, role_id, status_id FROM users WHERE username = ?");
+                $stmt = $pdo->prepare("SELECT u.user_id, u.username, u.password_hash, u.role_id, u.status_id, r.role_name
+                       FROM users u
+                       JOIN roles r ON u.role_id = r.role_id
+                       WHERE u.username = ?");
                 $stmt->execute([$username]);
                 $user = $stmt->fetch();
+
+                error_log('Login attempt for username: ' . $username);
+                if ($user) {
+                    error_log('User found. Hash: ' . $user['password_hash']);
+                    error_log('Status: ' . $user['status_id']);
+                    error_log('Password verify: ' . (password_verify($password, $user['password_hash']) ? 'yes' : 'no'));
+                } else {
+                    error_log('No user found for username: ' . $username);
+                }
 
                 if ($user && password_verify($password, $user['password_hash'])) {
                     if ($user['status_id'] == 1) { // Check if user is active
@@ -29,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['user_id'] = $user['user_id'];
                         $_SESSION['username'] = $user['username'];
                         $_SESSION['role_id'] = $user['role_id'];
+                        $_SESSION['role_name'] = $user['role_name']; // <-- Add this line
                         $_SESSION['last_activity'] = time();
 
                         // Update last login
@@ -285,8 +298,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </button>
                 
                 <div class="footer-links">
-                    <a href="../authenticate/signup.html" class="link">Create account</a>
-                    <a href="../authenticate/forgot-password.html" class="link">Forgot password?</a>
+                    <a href="../authenticate/signup.php" class="link">Create account</a>
+                    <a href="../authenticate/forgot-password.php" class="link">Forgot password?</a>
                 </div>
             </form>
         </div>

@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Insert new user
                         $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, role_id, status_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
                         try {
-                            if ($stmt->execute([$username, $email, $passwordHash, 2, 1])) {
+                            if ($stmt->execute([$username, $email, $passwordHash, 3, 1])) { // role_id = 3 for employee
                                 $response['success'] = true;
                                 $response['message'] = 'Registration successful';
                             } else {

@@ -1,9 +1,14 @@
 <?php
 require_once '../config/db.php';
 require_once '../config/session_check.php';
+requireRoles(['owner', 'admin']);
 
-// Get username from session
-$username = $_SESSION['username'];
+// DEBUG: Show all users regardless of role/status
+$stmt = $pdo->query("SELECT * FROM users ORDER BY user_id ASC");
+$users = $stmt->fetchAll();
+$roleNames = [1 => 'Owner', 2 => 'Admin', 3 => 'Employee'];
+$statusNames = [1 => 'Active', 2 => 'Inactive'];
+// After fixing your data, you can restore the original JOIN query to show roles and statuses.
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -437,7 +442,9 @@ $username = $_SESSION['username'];
                 <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
                 <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
                 <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="../user/user_management.php"class="active"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <?php if ($_SESSION['role_name'] === 'owner' || $_SESSION['role_name'] === 'admin'): ?>
+                    <li><a href="user_management.php" class="active"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <?php endif; ?>
                 <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
@@ -469,11 +476,10 @@ $username = $_SESSION['username'];
         <div class="action-bar">
             <div class="action-controls">
                 <div class="btn-group">
-                    <button type="button" class="btn-role" data-role="Employees">Employees</button>
-                    <button type="button" class="btn-role" data-role="Admin">Admins</button>
+                    <button type="button" class="btn-role" data-role="Employee">Employee</button>
+                    <button type="button" class="btn-role" data-role="Admin">Admin</button>
                 </div>
-                <a href="/user/user_add.html"><button class="btn" id="addUserBtn" style="padding: 12px;"><i
-                            class="fas fa-plus"></i> Add New User</button></a>
+                <a href="user_add.php"><button class="btn" id="addUserBtn" style="padding: 12px;"><i class="fas fa-plus"></i> Add New User</button></a>
                 <button class="btn-outline"><i class="fas fa-download"></i> Export List</button>
             </div>
             <div class="count-display">
@@ -498,53 +504,37 @@ $username = $_SESSION['username'];
                         <th>PHOTO</th>
                         <th>USERNAME</th>
                         <th>EMAIL</th>
-                        <th>M0BILE</th>
+                        <th>MOBILE</th>
                         <th>ROLE</th>
                         <th>STATUS</th>
                         <th>OPERATION</th>
                     </tr>
                 </thead>
                 <tbody id="employeeTable">
-                    <tr data-role="Admin" data-status="Active">
-                        <td><input type="checkbox"></td>
-                        <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="Employee" /></td>
-                        <td>Admin 1</td>
-                        <td>admin1@j2e.ph</td>
-                        <td>+63 917 123 4567</td>
-                        <td>Admin</td>
-                        <td><span class="status-badge status-active">Active</span></td>
-                        <td class="operations">
-                            <a href="/user/user_edit.html" class="icon-button"><i class="material-icons">edit</i></a>
-                            <button class="icon-button"><i class="material-icons">delete</i></button>
-                        </td>
-                    </tr>
-                    <tr data-role="Employees" data-status="Active">
-                        <td><input type="checkbox"></td>
-                        <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="Employee" /></td>
-                        <td>Employee 2</td>
-                        <td>employee2@j2e.ph</td>
-                        <td>+63 943 154 8693</td>
-                        <td>Employee</td>
-                        <td><span class="status-badge status-active">Active</span></td>
-                        <td class="operations">
-                            <a href="/user/user_edit.html" class="icon-button"><i class="material-icons">edit</i></a>
-                            <button class="icon-button"><i class="material-icons">delete</i></button>
-                        </td>
-                    </tr>
-                    <tr data-role="Employees" data-status="Inactive">
-                        <td><input type="checkbox"></td>
-                        <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="Employee" /></td>
-                        <td>Employee 3</td>
-                        <td>employee3@j2e.ph</td>
-                        <td>+63 952 135 9344</td>
-                        <td>Employee</td>
-                        <td><span class="status-badge status-inactive">Inactive</span></td>
-                        <td class="operations">
-                            <a href="/user/user_edit.html" class="icon-button"><i class="material-icons">edit</i></a>
-                            <button class="icon-button"><i class="material-icons">delete</i></button>
-                        </td>
-                    </tr>
-                </tbody>
+<?php if (empty($users)): ?>
+    <tr><td colspan="8">No users found.</td></tr>
+<?php else: ?>
+    <?php foreach ($users as $user): ?>
+        <tr data-role="<?= $roleNames[$user['role_id']] ?? 'Unknown' ?>">
+            <td><input type="checkbox" value="<?= htmlspecialchars($user['user_id'] ?? '') ?>"></td>
+            <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="User" /></td>
+            <td><?= htmlspecialchars($user['username'] ?? '') ?></td>
+            <td><?= htmlspecialchars($user['email'] ?? '') ?></td>
+            <td><?= htmlspecialchars($user['mobile'] ?? '') ?></td>
+            <td><?= htmlspecialchars($roleNames[$user['role_id']] ?? '') ?></td>
+            <td>
+                <span class="status-badge status-<?= strtolower($statusNames[$user['status_id']] ?? '') ?>">
+                    <?= htmlspecialchars($statusNames[$user['status_id']] ?? '') ?>
+                </span>
+            </td>
+            <td class="operations">
+                <a href="user_edit.php?user_id=<?= htmlspecialchars($user['user_id'] ?? '') ?>" class="icon-button"><i class="material-icons">edit</i></a>
+                <button class="icon-button" data-user-id="<?= htmlspecialchars($user['user_id'] ?? '') ?>"><i class="material-icons">delete</i></button>
+            </td>
+        </tr>
+    <?php endforeach; ?>
+<?php endif; ?>
+</tbody>
             </table>
         </div>
         <script>
@@ -557,12 +547,12 @@ $username = $_SESSION['username'];
             }
 
             // Filter functionality
-            document.querySelectorAll('[data-role]').forEach(button => {
+            document.querySelectorAll('.btn-role').forEach(button => {
                 button.addEventListener('click', function () {
                     const role = this.getAttribute('data-role');
 
                     // Update active button - remove active class from all buttons first
-                    document.querySelectorAll('[data-role]').forEach(btn => {
+                    document.querySelectorAll('.btn-role').forEach(btn => {
                         btn.classList.remove('active');
                     });
                     // Then add active class to the clicked button
@@ -570,10 +560,11 @@ $username = $_SESSION['username'];
 
                     // Filter table rows
                     document.querySelectorAll('#employeeTable tr').forEach(row => {
-                        if (role === 'All' || row.getAttribute('data-role') === role) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
+                        const rowRole = row.getAttribute('data-role');
+                        if (role === 'Employee') {
+                            row.style.display = (rowRole === 'Employee') ? '' : 'none';
+                        } else if (role === 'Admin') {
+                            row.style.display = (rowRole === 'Admin' || rowRole === 'Owner') ? '' : 'none';
                         }
                     });
 
@@ -627,14 +618,12 @@ $username = $_SESSION['username'];
             document.addEventListener('DOMContentLoaded', function () {
                 updateCounts();
 
-                // Set Employees button as active by default
-                const defaultActiveBtn = document.querySelector('[data-role="Employees"]');
-                if (defaultActiveBtn) {
-                    defaultActiveBtn.classList.add('active');
+                // Set 'Employee' as the default filter on page load
+                const empBtn = document.querySelector('[data-role="Employee"]');
+                if (empBtn) {
+                    empBtn.classList.add('active');
+                    empBtn.click();
                 }
-
-                // Trigger the filter for the default active button
-                defaultActiveBtn.click();
             });
         </script>
 </body>

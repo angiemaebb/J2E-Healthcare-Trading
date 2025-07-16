@@ -1,6 +1,7 @@
 <?php
 require_once '../config/db.php';
 require_once '../config/session_check.php';
+requireRoles(['owner','admin','employee']);
 
 // Get username from session
 $username = $_SESSION['username'];

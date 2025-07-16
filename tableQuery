@@ -136,3 +136,25 @@ INSERT INTO units (unit_name, unit_symbol) VALUES
 ('Pack', 'pack'),
 ('Set', 'set'),
 ('Unit', 'unit');
+
+CREATE TABLE roles (
+    role_id INT PRIMARY KEY,
+    role_name VARCHAR(50) UNIQUE NOT NULL
+);
+
+INSERT INTO roles (role_id, role_name) VALUES
+(1, 'owner'),
+(2, 'admin'),
+(3, 'employee');
+
+CREATE TABLE statuses (
+    status_id INT PRIMARY KEY,
+    status_name VARCHAR(50) UNIQUE NOT NULL
+);
+
+INSERT INTO statuses (status_id, status_name) VALUES
+(1, 'active'),
+(2, 'inactive');
+
+ALTER TABLE users ADD COLUMN email VARCHAR(255) UNIQUE AFTER username;
+ALTER TABLE users ADD COLUMN mobile VARCHAR(20) AFTER email;
