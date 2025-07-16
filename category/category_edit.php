@@ -1,3 +1,6 @@
+<?php
+require_once '../config/session_check.php';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
-    <link rel="icon" href="/images/J2E logo favicon.png" type="image/x-icon">
+    <link rel="icon" href="../images/J2E logo favicon.png" type="image/x-icon">
     <title>Edit Category - J2E Healthcare</title>
     <style>
         :root {
@@ -484,25 +487,25 @@
 
         <div class="nav-center">
             <ul class="nav-menu">
-                <li><a href="/home/dashboard.html"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="/inventory/inventory.html"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="/category/category_add.php" class="active"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="/user/user-management.html"><i class="fas fa-user"></i> User</a></li>
-                <li><a href="/invoice/invoice.html"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+                <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="../category/category_add.php" class="active"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="../user/user_management.php"><i class="fas fa-user"></i> User</a></li>
+                <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
 
         <div class="nav-right">
             <div class="user-info">
                 <img src="https://via.placeholder.com/30x30?text=U" alt="User Profile" class="user-profile">
-                <span class="username">Admin User</span>
+                <span class="username"><?php echo htmlspecialchars($username); ?></span>
                 <button class="hamburger" id="menuDropdown">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="/menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
                     <a href="/menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -722,8 +725,19 @@
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
         
         document.getElementById('logoutBtn').onclick = () => {
-            alert('Logging out...');
-            location.href = '/authenticate/login.html';
+            fetch('../authenticate/logout.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '../authenticate/login.php';
+                    } else {
+                        alert('Logout failed. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred during logout. Please try again.');
+                });
         };
 
         // Search functionality

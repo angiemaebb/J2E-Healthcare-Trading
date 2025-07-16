@@ -1,3 +1,11 @@
+<?php
+require_once '../config/session_check.php';
+//DB for this is still in progress
+/*if (!isset($username) && isset($_SESSION['username'])) {
+    $username = $_SESSION['username'];
+}
+require_once '../config/db.php';*/
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,7 +13,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
-    <link rel="icon" href="/images/J2E logo favicon.png" type="image/x-icon">
+    <link rel="icon" href="../images/J2E logo favicon.png" type="image/x-icon">
     <title>Add Product - J2E Healthcare</title>
     <style>
         :root {
@@ -371,9 +379,44 @@
             font-size: 28px;
         }
         }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 28px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: fadeInOut 3s forwards;
+        }
+
+        .toast.success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .toast.error {
+            background: #f44336;
+            color: white;
+        }
+
+        .toast i {
+            font-size: 22px;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
     </style>
-    </head>
-    <body>
+</head>
+<body>
     <nav class="top-nav">
         <div class="nav-left">
             <div class="logo">
@@ -383,25 +426,25 @@
 
         <div class="nav-center">
             <ul class="nav-menu">
-                <li><a href="/home/dashboard.html"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="/inventory/inventory.html" class="active"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="/category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="/user/user_management.html"><i class="fas fa-solid fa-user"></i> User</a></li>
-                <li><a href="/invoice/invoice.html"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+                <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="../inventory/inventory.php" class="active"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="../user/user_management.php"><i class="fas fa-user"></i> User</a></li>
+                <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
 
         <div class="nav-right">
             <div class="user-info">
                 <img src="../images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
-                <span class="username">Username</span>
+                <span class="username"><?php echo $username; ?></span>
                 <button class="hamburger" id="menuDropdown">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="/menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
                     <a href="/menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -409,79 +452,200 @@
 
     <div class="content">
         <div class="page-header">
-        <h1 class="page-title">Add Product</h1>
+            <h1 class="page-title">Add Product</h1>
         </div>
 
-        <form id="productForm" class="form-container">
-        <div class="form-section">
-            <div class="form-group">
-            <label for="productName">Product Name <span class="required">*</span></label>
-            <input type="text" id="productName" name="productName" required>
+        <form id="productForm" method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" enctype="multipart/form-data" class="form-container">
+            <div class="form-section">
+                <div class="form-group">
+                    <label for="productName">Product Name <span class="required">*</span></label>
+                    <input type="text" id="productName" name="productName" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="sku">SKU <span class="required">*</span></label>
+                    <input type="text" id="sku" name="sku" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="quantity">Quantity <span class="required">*</span></label>
+                    <input type="number" id="quantity" name="quantity" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="unitPrice">Unit Price (₱) <span class="required">*</span></label>
+                    <input type="number" id="unitPrice" name="unitPrice" min="0" step="0.01" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="category">Category <span class="required">*</span></label>
+                    <select id="category" name="category" required>
+                        <option value="">Select a category</option>
+                        <?php
+                        try {
+                            $stmt = $pdo->query("SELECT id, name FROM categories ORDER BY name");
+                            while ($row = $stmt->fetch()) {
+                                echo '<option value="' . htmlspecialchars($row['id']) . '">' . htmlspecialchars($row['name']) . '</option>';
+                            }
+                        } catch (PDOException $e) {
+                            // Log error and show generic message
+                            error_log("Error fetching categories: " . $e->getMessage());
+                            echo '<option value="">Error loading categories</option>';
+                        }
+                        ?>
+                    </select>
+                </div>
             </div>
 
-            <div class="form-group">
-            <label for="sku">SKU <span class="required">*</span></label>
-            <input type="text" id="sku" name="sku" required>
+            <div class="image-upload-section">
+                <div class="image-upload-container" id="imageUpload" tabindex="0" role="button">
+                    <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <div class="upload-text">Upload Product Image</div>
+                    <div class="upload-subtext">PNG, JPG, or GIF up to 5MB</div>
+                    <button type="button" class="upload-button">Choose File</button>
+                    <input type="file" id="fileInput" name="productImage" accept="image/*" style="display: none;">
+                </div>
+                <div class="preview-container" id="previewContainer">
+                    <img id="imagePreview" src="" alt="Preview">
+                    <div class="remove-image" id="removeImage">Remove Image</div>
+                </div>
             </div>
 
-            <div class="form-group">
-            <label for="description">Description</label>
-            <textarea id="description" name="description"></textarea>
+            <div class="btn-container">
+                <button type="submit" class="btn-save" id="saveProduct">
+                    <i class="fas fa-save"></i> Save New Product
+                </button>
             </div>
-
-            <div class="form-group">
-            <label for="quantity">Quantity <span class="required">*</span></label>
-            <input type="number" id="quantity" name="quantity" min="0" required>
-            </div>
-
-            <div class="form-group">
-            <label for="unitPrice">Unit Price (₱) <span class="required">*</span></label>
-            <input type="number" id="unitPrice" name="unitPrice" min="0" step="0.01" required>
-            </div>
-            
-            <div class="form-group">
-            <label for="category">Category <span class="required">*</span></label>
-            <select id="category" name="category" required>
-                <option value="">Select a category</option>
-                <option value="equipment">Equipment</option>
-                <option value="supply">Supply</option>
-            </select>
-            </div>
-        </div>
-
-        <div class="image-upload-section">
-            <div class="image-upload-container" id="imageUpload" tabindex="0" role="button">
-            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-            <div class="upload-text">Upload Product Image</div>
-            <div class="upload-subtext">PNG, JPG, or GIF up to 5MB</div>
-            <button type="button" class="upload-button">Choose File</button>
-            <input type="file" id="fileInput" accept="image/*" style="display: none;">
-            </div>
-            <div class="preview-container" id="previewContainer">
-            <img id="imagePreview" src="" alt="Preview">
-            <div class="remove-image" id="removeImage">Remove Image</div>
-            </div>
-        </div>
-
-        <div class="btn-container">
-            <button type="submit" class="btn-save" id="saveProduct">
-            <i class="fas fa-save"></i> Save New Product
-            </button>
-        </div>
         </form>
     </div>
 
+    <?php
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        try {
+            // Validate required fields
+            $required_fields = ['productName', 'sku', 'quantity', 'unitPrice', 'category'];
+            foreach ($required_fields as $field) {
+                if (empty($_POST[$field])) {
+                    throw new Exception("All required fields must be filled out");
+                }
+            }
+
+            // Validate numeric fields
+            if (!is_numeric($_POST['quantity']) || $_POST['quantity'] < 0) {
+                throw new Exception("Invalid quantity value");
+            }
+            if (!is_numeric($_POST['unitPrice']) || $_POST['unitPrice'] < 0) {
+                throw new Exception("Invalid unit price value");
+            }
+
+            // Handle image upload if present
+            $image_path = null;
+            if (isset($_FILES['productImage']) && $_FILES['productImage']['error'] === UPLOAD_ERR_OK) {
+                $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+                $file_type = $_FILES['productImage']['type'];
+                
+                if (!in_array($file_type, $allowed_types)) {
+                    throw new Exception("Invalid file type. Only JPG, PNG, and GIF are allowed.");
+                }
+                
+                $max_size = 5 * 1024 * 1024; // 5MB
+                if ($_FILES['productImage']['size'] > $max_size) {
+                    throw new Exception("File size too large. Maximum size is 5MB.");
+                }
+                
+                $upload_dir = '../uploads/products/';
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                $file_extension = pathinfo($_FILES['productImage']['name'], PATHINFO_EXTENSION);
+                $file_name = uniqid() . '.' . $file_extension;
+                $target_path = $upload_dir . $file_name;
+                
+                if (!move_uploaded_file($_FILES['productImage']['tmp_name'], $target_path)) {
+                    throw new Exception("Failed to upload image");
+                }
+                
+                $image_path = 'uploads/products/' . $file_name;
+            }
+
+            // Begin transaction
+            $pdo->beginTransaction();
+
+            // Insert product
+            $stmt = $pdo->prepare("INSERT INTO products (name, sku, description, quantity, unit_price, category_id, image_path, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            
+            $stmt->execute([
+                $_POST['productName'],
+                $_POST['sku'],
+                $_POST['description'] ?? null,
+                $_POST['quantity'],
+                $_POST['unitPrice'],
+                $_POST['category'],
+                $image_path,
+                $_SESSION['user_id']
+            ]);
+
+            // Commit transaction
+            $pdo->commit();
+
+            // Show success message
+            echo '<script>
+                showToast("Product added successfully!", "success");
+                setTimeout(() => {
+                    window.location.href = "inventory.php";
+                }, 2000);
+            </script>';
+
+        } catch (Exception $e) {
+            // Rollback transaction on error
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            // Delete uploaded image if exists
+            if (isset($target_path) && file_exists($target_path)) {
+                unlink($target_path);
+            }
+
+            // Show error message
+            echo '<script>
+                showToast("Error: ' . addslashes($e->getMessage()) . '", "error");
+            </script>';
+        }
+    }
+    ?>
+
     <script>
-        // Dropdown
+        // Dropdown functionality
         const userDropdown = document.getElementById('userDropdown');
         document.getElementById('menuDropdown').onclick = (e) => {
-        e.stopPropagation();
-        userDropdown.classList.toggle('show');
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
         };
+        
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
+        
+        // Logout functionality
         document.getElementById('logoutBtn').onclick = () => {
-        alert('Logging out...');
-        location.href = 'login.html';
+            fetch('../authenticate/logout.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '../authenticate/login.php';
+                    } else {
+                        showToast('Logout failed. Please try again.', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('An error occurred during logout. Please try again.', 'error');
+                });
         };
 
         // Image Upload
@@ -493,45 +657,36 @@
 
         imageUpload.onclick = () => fileInput.click();
         fileInput.onchange = function () {
-        if (this.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-            imagePreview.src = e.target.result;
-            previewContainer.style.display = 'block';
-            imageUpload.style.display = 'none';
-            };
-            reader.readAsDataURL(this.files[0]);
-        }
+            if (this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                    imageUpload.style.display = 'none';
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
         };
         removeImage.onclick = () => {
-        fileInput.value = '';
-        previewContainer.style.display = 'none';
-        imageUpload.style.display = 'flex';
+            fileInput.value = '';
+            previewContainer.style.display = 'none';
+            imageUpload.style.display = 'flex';
         };
 
-        // Form Submission
-        document.getElementById('productForm').onsubmit = function (e) {
-        e.preventDefault();
-        const fields = ['productName', 'sku', 'quantity', 'unitPrice', 'category'];
-        for (let id of fields) {
-            if (!document.getElementById(id).value.trim()) {
-            alert('Please fill in all required fields.');
-            return;
-            }
+        // Toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
         }
-
-        const toast = document.createElement('div');
-        toast.innerHTML = `
-            <div style="position:fixed;top:20px;right:20px;background:#db2c24;color:white;padding:15px 25px;border-radius:8px;box-shadow:0 5px 15px rgba(0,0,0,0.2);z-index:2000;display:flex;align-items:center;gap:10px;">
-            <i class="fas fa-check-circle" style="font-size:20px;"></i>
-            <span>Product added successfully!</span>
-            </div>`;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-        this.reset();
-        previewContainer.style.display = 'none';
-        imageUpload.style.display = 'flex';
-        };
     </script>
-    </body>
+</body>
 </html>
