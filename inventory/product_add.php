@@ -1,10 +1,9 @@
 <?php
+require_once '../config/db.php';
 require_once '../config/session_check.php';
-//DB for this is still in progress
-/*if (!isset($username) && isset($_SESSION['username'])) {
-    $username = $_SESSION['username'];
-}
-require_once '../config/db.php';*/
+
+// Get username from session
+$username = $_SESSION['username'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -442,9 +441,9 @@ require_once '../config/db.php';*/
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="/menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="/menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="../menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="../menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -630,23 +629,24 @@ require_once '../config/db.php';*/
         };
         
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        
+
         // Logout functionality
-        document.getElementById('logoutBtn').onclick = () => {
+        document.getElementById('logoutBtn').addEventListener('click', function(e) {
+            e.preventDefault();
             fetch('../authenticate/logout.php')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         window.location.href = '../authenticate/login.php';
                     } else {
-                        showToast('Logout failed. Please try again.', 'error');
+                        alert('Logout failed. Please try again.');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showToast('An error occurred during logout. Please try again.', 'error');
+                    alert('An error occurred during logout. Please try again.');
                 });
-        };
+        });
 
         // Image Upload
         const fileInput = document.getElementById('fileInput');

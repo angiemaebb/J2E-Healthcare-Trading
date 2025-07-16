@@ -1,3 +1,10 @@
+<?php
+require_once '../config/db.php';
+require_once '../config/session_check.php';
+
+// Get username from session
+$username = $_SESSION['username'];
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -346,16 +353,16 @@
             <span class="company-name">J2E Healthcare Trading</span>
         </div>
         <div class="nav-center">
-            <a href="#" class="nav-item"><i class="material-icons">home</i> Home</a>
-            <a href="#" class="nav-item"><i class="material-icons">inventory_2</i> Inventory</a>
-            <a href="#" class="nav-item"><i class="material-icons">category</i> Category</a>
-            <a href="#" class="nav-item"><i class="material-icons">person</i> User</a>
-            <a href="#" class="nav-item active"><i class="material-icons">receipt</i> Invoice</a>
+            <a href="../home/dashboard.php" class="nav-item"><i class="material-icons">home</i> Home</a>
+            <a href="../inventory/inventory.php" class="nav-item"><i class="material-icons">inventory_2</i> Inventory</a>
+            <a href="../category/category_edit.php" class="nav-item"><i class="material-icons">category</i> Category</a>
+            <a href="../user/user_management.php" class="nav-item"><i class="material-icons">person</i> User</a>
+            <a href="../invoice/invoice.php" class="nav-item active"><i class="material-icons">receipt</i> Invoice</a>
         </div>
         <div class="nav-right">
             <div class="user-info">
                 <i class="material-icons">account_circle</i>
-                <span class="username">Username</span>
+                <span class="username"><?php echo $username; ?></span>
             </div>
             <button class="menu-button"><i class="material-icons">menu</i></button>
         </div>

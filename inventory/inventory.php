@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="icon" href="/images/J2E logo favicon.png" type="image/x-icon">
+    <title>J2E Healthcare Trading - Inventory</title>
+    <style>
+        :root {
+            --main-color: #db2c24;
+            --secondary-color: #ff914d;
+            --light-gray: #e7e6e6;
+            --dark-gray: #333;
+            --medium-gray: #777;
+            --header-gray: #f5f5f5;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+        }
+
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            overflow-x: hidden;
+        }
+
+        * {
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            width: 100%;
+        }
+
+        h1 {
+            color: var(--main-color);
+            border-bottom: 2px solid var(--main-color);
+        }
+
+        .nav-left,
+        .nav-right {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+            margin-left: 20px;
+        }
+
+        .nav-center {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+        }
+
+        .logo img {
+            max-height: 50px;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            gap: 20px;
+        }
+
+        .nav-menu a {
+            text-decoration: none;
+            color: var(--main-color);
+            padding: 8px 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-menu a.active {
+            font-weight: bold;
+        }
+
+        .nav-menu a:hover {
+            font-weight: bold;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-right: 20px;
+            position: relative;
+        }
+
+        .user-profile {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .username {
+            font-weight: bold;
+            color: var(--main-color);
+            white-space: nowrap;
+        }
+
+        .hamburger {
+            display: block;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            z-index: 1001;
+            color: var(--main-color);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            min-width: 180px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 10px 0;
+            z-index: 1000;
+            display: none;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            text-decoration: none;
+            color: var(--main-color);
+            font-size: 0.8rem;
+        }
+
+        .user-dropdown a:hover {
+            font-weight: bold;
+        }
+
+        .user-dropdown a i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .main-content {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .menu {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .menu-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .menu-btns {
+            background-color: var(--main-color);
+            min-height: 40px;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: white;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .menu-btns:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .menu a {
+            text-decoration: none;
+            color: white;
+        }
+
+        .search-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-grow: 1;
+            max-width: 400px;
+            min-width: 250px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        tr {
+            min-height: 100px;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--medium-gray);
+            border-bottom: 2px solid var(--light-gray);
+            text-transform: uppercase;
+            font-size: 1rem;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--light-gray);
+            vertical-align: middle;
+            font-size: 0.9rem;
+            min-height: 100px;
+            height: 100px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .product-image {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .item-name {
+            font-weight: bold;
+            color: var(--dark-gray);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="top-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <img src="../images/J2E-logo2.png" alt="J2E Healthcare Trading Logo">
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <ul class="nav-menu">
+                <li><a href="/home/dashboard.html"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="/inventory/inventory.html" class="active"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="/category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="/user/user_management.html"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <li><a href="/invoice/invoice.html"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+            </ul>
+        </div>
+
+        <div class="nav-right">
+            <div class="user-info">
+                <img src="../images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
+                <span class="username">Username</span>
+                <button class="hamburger" id="menuDropdown">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="/menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="/menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
+                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div class="main-content">
+        <h1>Inventory Management</h1>
+
+        <div class="menu">
+            <div class="menu-buttons">
+                <a href="/inventory/product_add.php"><button class="menu-btns"><i class="fas fa-plus"></i> Add New
+                        Product</button></a>
+                <a href="/category/category_edit.php"><button class="menu-btns"><i class="fas fa-tag"></i> Manage
+                        Categories</button></a>
+            </div>
+
+            <div class="search-container">
+                <input type="text" class="search-input" placeholder="Search product or category...">
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th><input type="checkbox"></th>
+                    <th>Image</th>
+                    <th>Item Name</th>
+                    <th>Description</th>
+                    <th>SKU</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Category</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input type="checkbox"></td>
+                    <td><img src="../images/sample user profile pic.jpg" alt="Product" class="product-image"></td>
+                    <td class="item-name">Hydrocollator Moist Tank</td>
+                    <td>Constant temperature: 0-99°C adjustable...</td>
+                    <td>0001</td>
+                    <td>10 units</td>
+                    <td>₱140,000.00</td>
+                    <td>Equipment</td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"></td>
+                    <td><img src="https://via.placeholder.com/60" alt="Product" class="product-image"></td>
+                    <td class="item-name">Paraffin Wax Bath</td>
+                    <td>6 lbs Paraffin wax included, plastic cover</td>
+                    <td>0003</td>
+                    <td>20 units</td>
+                    <td>₱23,000.00</td>
+                    <td>Equipment</td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"></td>
+                    <td><img src="https://via.placeholder.com/60" alt="Product" class="product-image"></td>
+                    <td class="item-name">Therapeutic Ultrasound Machine</td>
+                    <td>Advanced technology with body parts navigation</td>
+                    <td>0004</td>
+                    <td>15 units</td>
+                    <td>₱180,000.00</td>
+                    <td>Equipment</td>
+                </tr>
+                <!-- PHP Sample: -->
+                <!--
+                <?php foreach($products as $product): ?>
+                <tr>
+                    <td><input type="checkbox"></td>
+                    <td><img src="<?= $product['image'] ?>" alt="Product" class="product-image"></td>
+                    <td class="item-name"><?= $product['name'] ?></td>
+                    <td><?= $product['description'] ?></td>
+                    <td><?= $product['sku'] ?></td>
+                    <td><?= $product['quantity'] ?> units</td>
+                    <td>₱<?= number_format($product['price'], 2) ?></td>
+                    <td><?= $product['category'] ?></td>
+                </tr>
+                <?php endforeach; ?>
+                -->
+            </tbody>
+        </table>
+    </div>
+    <script>
+        function closeAllDropdowns(exceptElement) {
+            if (!exceptElement) {
+                document.getElementById('userDropdown').classList.remove('show');
+            }
+        }
+
+        document.getElementById('menuDropdown').addEventListener('click', function (e) {
+            e.stopPropagation();
+            const userDropdown = document.getElementById('userDropdown');
+            const wasOpen = userDropdown.classList.contains('show');
+
+            closeAllDropdowns();
+            if (!wasOpen) {
+                userDropdown.classList.add('show');
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            closeAllDropdowns(e.target);
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', function (e) {
+            e.preventDefault();
+            alert('Logging out....');
+            window.location.href = '/authenticate/login.html';
+        });
+    </script>
+</body>
+
+</html>

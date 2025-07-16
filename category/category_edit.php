@@ -1,5 +1,9 @@
 <?php
+require_once '../config/db.php';
 require_once '../config/session_check.php';
+
+// Get username from session
+$username = $_SESSION['username'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -503,9 +507,9 @@ require_once '../config/session_check.php';
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="/menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="/menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="../menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="../menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -723,8 +727,10 @@ require_once '../config/session_check.php';
         };
         
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        
-        document.getElementById('logoutBtn').onclick = () => {
+
+        // Logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', function(e) {
+            e.preventDefault();
             fetch('../authenticate/logout.php')
                 .then(response => response.json())
                 .then(data => {
@@ -738,7 +744,7 @@ require_once '../config/session_check.php';
                     console.error('Error:', error);
                     alert('An error occurred during logout. Please try again.');
                 });
-        };
+        });
 
         // Search functionality
         const searchInput = document.getElementById('itemSearch');

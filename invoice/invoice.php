@@ -1,3 +1,17 @@
+<?php
+require_once '../config/db.php';
+require_once '../config/session_check.php';
+
+// Get the current user's information from the session
+$username = $_SESSION['username'];
+
+// Handle logout
+if (isset($_POST['logout'])) {
+    session_destroy();
+    header("Location: ../authenticate/login.php");
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -379,25 +393,25 @@
         
         <div class="nav-center">
             <ul class="nav-menu">
-                <li><a href="../home/dashboard.html"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="../inventory/inventory.html"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
                 <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="../user/user_management.html"><i class="fas fa-solid fa-user"></i> User</a></li>
-                <li><a href="../invoice/invoice.html" class="active"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+                <li><a href="../user/user_management.php"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <li><a href="../invoice/invoice.php" class="active"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
 
         <div class="nav-right">
             <div class="user-info">
                 <img src="../images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
-                <span class="username">Username</span>
+                <span class="username"><?php echo htmlspecialchars($username); ?></span>
                 <button class="hamburger" id="menuDropdown">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="../menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
                     <a href="../menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -544,10 +558,22 @@
             closeAllDropdowns(e.target);
         });
 
-        document.getElementById('logoutBtn').addEventListener('click', function (e) {
+        // Logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            alert('Logging out....');
-            window.location.href = '../authenticate/login.html';
+            fetch('../authenticate/logout.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '../authenticate/login.php';
+                    } else {
+                        alert('Logout failed. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred during logout. Please try again.');
+                });
         });
     </script>
 </body>

@@ -9,6 +9,13 @@ if (!isset($_SESSION['user_id'])) {
 
 // Get username from session
 $username = $_SESSION['username'];
+
+// Handle logout
+if (isset($_POST['logout'])) {
+    session_destroy();
+    header("Location: ../authenticate/login.php");
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -692,9 +699,9 @@ $username = $_SESSION['username'];
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="/menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="/menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="#"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#"><i class="fas fa-question-circle"></i> Help</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -814,9 +821,9 @@ $username = $_SESSION['username'];
                     <h2>Quick Actions</h2>
                 </div>
                 <div class="action-btns">
-                    <a href="/inventory/product_add.php"><button class="action-btn"><i class="fas fa-plus"></i> Add New Product</button></a>
+                    <a href="../inventory/product_add.php"><button class="action-btn"><i class="fas fa-plus"></i> Add New Product</button></a>
                     <a href="../category/category_add.php"><button class="action-btn"><i class="fas fa-tag"></i> Add New Category</button></a>
-                    <a href="/invoice/invoice_add.html"><button class="action-btn"><i class="fas fa-file-invoice"></i> Place New Invoice</button></a>
+                    <a href="../invoice/invoice_add.php"><button class="action-btn"><i class="fas fa-file-invoice"></i> Place New Invoice</button></a>
                 </div>
             </div>
         </div>
@@ -980,10 +987,8 @@ $username = $_SESSION['username'];
         });
 
 
-        document.getElementById('logoutBtn').addEventListener('click', function (e) {
+        document.getElementById('logoutBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            
-            // Call the logout endpoint
             fetch('../authenticate/logout.php')
                 .then(response => response.json())
                 .then(data => {

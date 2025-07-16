@@ -3,6 +3,13 @@ require_once '../config/session_check.php';
 if (!isset($username) && isset($_SESSION['username'])) {
     $username = $_SESSION['username'];
 }
+
+// Handle logout
+if (isset($_POST['logout'])) {
+    session_destroy();
+    header("Location: ../authenticate/login.php");
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -504,7 +511,11 @@ if (!isset($username) && isset($_SESSION['username'])) {
                 <div class="user-dropdown" id="userDropdown">
                     <a href="#"><i class="fas fa-cog"></i> Settings</a>
                     <a href="#"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <form method="POST" style="margin: 0;">
+                        <button type="submit" name="logout" style="background: none; border: none; width: 100%; text-align: left; padding: 10px 15px; color: var(--main-color); font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -625,21 +636,31 @@ if (!isset($username) && isset($_SESSION['username'])) {
         
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
         
-        document.getElementById('logoutBtn').onclick = () => {
-            fetch('../authenticate/logout.php')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        window.location.href = '../authenticate/login.php';
-                    } else {
-                        alert('Logout failed. Please try again.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred during logout. Please try again.');
-                });
-        };
+        // Form submission for logout
+        document.getElementById('userDropdown').addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent default form submission
+            const form = this;
+            const logoutBtn = form.querySelector('button[name="logout"]');
+            const logoutText = logoutBtn.textContent.trim();
+            const logoutIcon = logoutBtn.querySelector('i').className;
+
+            // Show success toast
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `
+                <i class="fas fa-sign-out-alt"></i>
+                <span>${logoutText} successfully!</span>
+            `;
+            document.body.appendChild(toast);
+            
+            // Remove toast after animation
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+
+            // Redirect to login page after successful logout
+            window.location.href = '../authenticate/login.php';
+        });
 
         // Search functionality
         const searchInput = document.querySelector('.search-box input');

@@ -1,3 +1,10 @@
+<?php
+require_once '../config/db.php';
+require_once '../config/session_check.php';
+
+// Get username from session
+$username = $_SESSION['username'];
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -307,11 +314,11 @@
         </div>
         <div class="nav-center">
             <ul class="nav-menu">
-                <li><a href="/home/dashboard.html"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="/inventory/inventory.html"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="/category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="/user/user_management.html" class="active"><i class="fas fa-solid fa-user"></i> User</a></li>
-                <li><a href="/invoice/invoice.html"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+                <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="../user/user_management.php" class="active"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
         <div class="nav-right">
@@ -322,9 +329,9 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="/menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="/menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="../menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="../menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -390,28 +397,31 @@
         </div>
     </div>
     <script>
-        // User dropdown functionality
-        function closeAllDropdowns(exceptElement) {
-            if (!exceptElement) {
-                document.getElementById('userDropdown').classList.remove('show');
-            }
-        }
-        document.getElementById('menuDropdown').addEventListener('click', function (e) {
+        // Dropdown functionality
+        const userDropdown = document.getElementById('userDropdown');
+        document.getElementById('menuDropdown').onclick = (e) => {
             e.stopPropagation();
-            const userDropdown = document.getElementById('userDropdown');
-            const wasOpen = userDropdown.classList.contains('show');
-            closeAllDropdowns();
-            if (!wasOpen) {
-                userDropdown.classList.add('show');
-            }
-        });
-        document.addEventListener('click', function (e) {
-            closeAllDropdowns(e.target);
-        });
-        document.getElementById('logoutBtn').addEventListener('click', function (e) {
+            userDropdown.classList.toggle('show');
+        };
+        
+        document.addEventListener('click', () => userDropdown.classList.remove('show'));
+
+        // Logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            alert('Logging out....');
-            window.location.href = '/authenticate/login.html';
+            fetch('../authenticate/logout.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '../authenticate/login.php';
+                    } else {
+                        alert('Logout failed. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred during logout. Please try again.');
+                });
         });
         // Image upload preview
         const userImageInput = document.getElementById('userImage');
