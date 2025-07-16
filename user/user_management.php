@@ -1,9 +1,21 @@
 <?php
 require_once '../config/db.php';
 require_once '../config/session_check.php';
+requireRoles(['owner', 'admin']);
 
-// Get username from session
-$username = $_SESSION['username'];
+// Fetch all users with their roles and status
+$stmt = $pdo->query("
+    SELECT u.user_id, u.username, u.email, r.role_name, s.status_name
+    FROM users u
+    JOIN roles r ON u.role_id = r.role_id
+    JOIN statuses s ON u.status_id = s.status_id
+    ORDER BY u.user_id ASC
+");
+$users = $stmt->fetchAll();
+
+// Debug output
+// Remove or comment out after debugging
+// echo '<pre>'; print_r($users); echo '</pre>';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -437,7 +449,9 @@ $username = $_SESSION['username'];
                 <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
                 <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
                 <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="../user/user_management.php"class="active"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <?php if ($_SESSION['role_name'] === 'owner' || $_SESSION['role_name'] === 'admin'): ?>
+                    <li><a href="user_management.php" class="active"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <?php endif; ?>
                 <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
@@ -472,8 +486,7 @@ $username = $_SESSION['username'];
                     <button type="button" class="btn-role" data-role="Employees">Employees</button>
                     <button type="button" class="btn-role" data-role="Admin">Admins</button>
                 </div>
-                <a href="/user/user_add.html"><button class="btn" id="addUserBtn" style="padding: 12px;"><i
-                            class="fas fa-plus"></i> Add New User</button></a>
+                <a href="user_add.php"><button class="btn" id="addUserBtn" style="padding: 12px;"><i class="fas fa-plus"></i> Add New User</button></a>
                 <button class="btn-outline"><i class="fas fa-download"></i> Export List</button>
             </div>
             <div class="count-display">
@@ -505,46 +518,30 @@ $username = $_SESSION['username'];
                     </tr>
                 </thead>
                 <tbody id="employeeTable">
-                    <tr data-role="Admin" data-status="Active">
-                        <td><input type="checkbox"></td>
-                        <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="Employee" /></td>
-                        <td>Admin 1</td>
-                        <td>admin1@j2e.ph</td>
-                        <td>+63 917 123 4567</td>
-                        <td>Admin</td>
-                        <td><span class="status-badge status-active">Active</span></td>
-                        <td class="operations">
-                            <a href="/user/user_edit.html" class="icon-button"><i class="material-icons">edit</i></a>
-                            <button class="icon-button"><i class="material-icons">delete</i></button>
-                        </td>
-                    </tr>
-                    <tr data-role="Employees" data-status="Active">
-                        <td><input type="checkbox"></td>
-                        <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="Employee" /></td>
-                        <td>Employee 2</td>
-                        <td>employee2@j2e.ph</td>
-                        <td>+63 943 154 8693</td>
-                        <td>Employee</td>
-                        <td><span class="status-badge status-active">Active</span></td>
-                        <td class="operations">
-                            <a href="/user/user_edit.html" class="icon-button"><i class="material-icons">edit</i></a>
-                            <button class="icon-button"><i class="material-icons">delete</i></button>
-                        </td>
-                    </tr>
-                    <tr data-role="Employees" data-status="Inactive">
-                        <td><input type="checkbox"></td>
-                        <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="Employee" /></td>
-                        <td>Employee 3</td>
-                        <td>employee3@j2e.ph</td>
-                        <td>+63 952 135 9344</td>
-                        <td>Employee</td>
-                        <td><span class="status-badge status-inactive">Inactive</span></td>
-                        <td class="operations">
-                            <a href="/user/user_edit.html" class="icon-button"><i class="material-icons">edit</i></a>
-                            <button class="icon-button"><i class="material-icons">delete</i></button>
-                        </td>
-                    </tr>
-                </tbody>
+<?php if (empty($users)): ?>
+    <tr><td colspan="8">No users found.</td></tr>
+<?php else: ?>
+    <?php foreach ($users as $user): ?>
+        <tr>
+            <td><input type="checkbox" value="<?= htmlspecialchars($user['user_id']) ?>"></td>
+            <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="User" /></td>
+            <td><?= htmlspecialchars($user['username']) ?></td>
+            <td><?= htmlspecialchars($user['email']) ?></td>
+            <td></td>
+            <td><?= htmlspecialchars(ucfirst($user['role_name'])) ?></td>
+            <td>
+                <span class="status-badge status-<?= strtolower($user['status_name']) ?>">
+                    <?= htmlspecialchars($user['status_name']) ?>
+                </span>
+            </td>
+            <td class="operations">
+                <a href="user_edit.php?user_id=<?= $user['user_id'] ?>" class="icon-button"><i class="material-icons">edit</i></a>
+                <button class="icon-button" data-user-id="<?= $user['user_id'] ?>"><i class="material-icons">delete</i></button>
+            </td>
+        </tr>
+    <?php endforeach; ?>
+<?php endif; ?>
+</tbody>
             </table>
         </div>
         <script>

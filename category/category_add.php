@@ -1,5 +1,6 @@
 <?php
 require_once '../config/session_check.php';
+requireRoles(['owner', 'admin', 'employee']);
 if (!isset($username) && isset($_SESSION['username'])) {
     $username = $_SESSION['username'];
 }

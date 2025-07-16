@@ -1,3 +1,12 @@
+<?php
+require_once '../config/db.php';
+require_once '../config/session_check.php';
+requireRoles(['owner', 'admin', 'employee']);
+
+// Get username from session
+$username = $_SESSION['username'];
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -292,11 +301,13 @@
 
         <div class="nav-center">
             <ul class="nav-menu">
-                <li><a href="/home/dashboard.html"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="/inventory/inventory.html" class="active"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="/category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="/user/user_management.html"><i class="fas fa-solid fa-user"></i> User</a></li>
-                <li><a href="/invoice/invoice.html"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+                <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="inventory.php" class="active"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
+                <?php if ($_SESSION['role_name'] === 'owner' || $_SESSION['role_name'] === 'admin'): ?>
+                    <li><a href="../user/user_management.php"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <?php endif; ?>
+                <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
 

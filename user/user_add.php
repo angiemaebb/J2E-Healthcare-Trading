@@ -1,6 +1,7 @@
 <?php
 require_once '../config/db.php';
 require_once '../config/session_check.php';
+requireRoles(['owner', 'admin']);
 
 // Get username from session
 $username = $_SESSION['username'];
@@ -387,7 +388,7 @@ $username = $_SESSION['username'];
             <h1>Add New User</h1>
         </div>
         <div style="margin-bottom: 2rem;">
-            <a href="/user/user_management.html" class="btn" style="background: var(--primary-color); color: white; display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; font-weight: 500; padding: 0.5rem 1rem; border-radius: 4px;">
+            <a href="user_management.php" class="btn" style="background: var(--primary-color); color: white; display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; font-weight: 500; padding: 0.5rem 1rem; border-radius: 4px;">
                 <span class="material-icons">keyboard_backspace</span>
                 User Management
             </a>

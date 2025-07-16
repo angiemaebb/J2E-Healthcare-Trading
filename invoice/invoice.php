@@ -1,6 +1,7 @@
 <?php
 require_once '../config/db.php';
 require_once '../config/session_check.php';
+requireRoles(['owner', 'admin', 'employee']);
 
 // Get the current user's information from the session
 $username = $_SESSION['username'];
@@ -396,8 +397,10 @@ if (isset($_POST['logout'])) {
                 <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
                 <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
                 <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <li><a href="../user/user_management.php"><i class="fas fa-solid fa-user"></i> User</a></li>
-                <li><a href="../invoice/invoice.php" class="active"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+                <?php if ($_SESSION['role_name'] === 'owner' || $_SESSION['role_name'] === 'admin'): ?>
+                    <li><a href="../user/user_management.php"><i class="fas fa-solid fa-user"></i> User</a></li>
+                <?php endif; ?>
+                <li><a href="invoice.php" class="active"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
 
