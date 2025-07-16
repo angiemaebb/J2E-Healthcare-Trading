@@ -137,11 +137,11 @@ if (isset($_POST['logout'])) {
             display: none;
         }
 
-        .down.show {
+        .user-dropdown.show {
             display: block;
         }
 
-        .down a {
+        .user-dropdown a {
             display: flex;
             align-items: center;
             gap: 10px;
