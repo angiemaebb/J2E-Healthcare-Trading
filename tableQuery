@@ -68,6 +68,7 @@ CREATE TABLE product_inventory (
 );
 
 //Suppliers Table
+//we might have to remove this, we don't have supplier entity anymore
 CREATE TABLE suppliers (
     supplier_id INT PRIMARY KEY AUTO_INCREMENT,
     supplier_name VARCHAR(255) NOT NULL,
@@ -77,6 +78,20 @@ CREATE TABLE suppliers (
     address TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+//Product Suppliers Table (Many-to-Many relationship between products and suppliers)
+//we might have to remove this, we don't have supplier entity anymore
+CREATE TABLE product_suppliers (
+    product_id INT,
+    supplier_id INT,
+    supplier_sku VARCHAR(50),
+    supplier_price DECIMAL(10,2),
+    is_primary_supplier BOOLEAN DEFAULT FALSE,
+    last_supply_date DATETIME,
+    PRIMARY KEY (product_id, supplier_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(supplier_id)
 );
 
 //Invoices Table
