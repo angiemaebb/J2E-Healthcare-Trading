@@ -482,6 +482,32 @@ $username = $_SESSION['username'];
 
         /*menu things*/
         /* Settings and Help Modal Styles */
+        .menu-btns {
+    background-color: var(--main-color);
+    min-height: 40px;
+    border: none;
+    padding: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: white;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.menu-btns:hover {
+    background-color: var(--secondary-color);
+}
+
+.menu-btns i {
+    font-size: 14px;
+}
+        
         .settings-section,
         .help-section {
             margin-bottom: 20px;
