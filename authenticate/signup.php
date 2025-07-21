@@ -2,7 +2,7 @@
 session_start();
 require_once '../config/db.php';
 
-// Initialize response array
+// Initialize response arrays
 $response = array('success' => false, 'message' => '');
 
 // Check if form is submitted via POST
