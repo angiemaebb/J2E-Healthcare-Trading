@@ -1,14 +1,10 @@
 <?php
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 $host = 'localhost';
 $dbname = 'j2e_inventory';
 $username = 'root';
 $password = '';
 
+// Create PDO connection
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -16,4 +12,15 @@ try {
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }
+
+// Create mysqli connection
+$conn = new mysqli($host, $username, $password, $dbname);
+
+// Check mysqli connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Set charset
+$conn->set_charset("utf8mb4");
 ?>

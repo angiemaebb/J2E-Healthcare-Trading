@@ -1,13 +1,201 @@
 <?php
 require_once '../config/db.php';
 require_once '../config/session_check.php';
-requireRoles(['owner', 'admin', 'employee']);
+
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Get username from session
 $username = $_SESSION['username'];
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Get form data
+    $invoice_number = $_POST['invoice_number'];
+    $customer_name = $_POST['customer_name'];
+    $customer_contact = $_POST['customer_contact'];
+    $invoice_date = $_POST['invoice_date'];
+    $due_date = $_POST['due_date'];
+    $status = $_POST['status'];
+    $notes = $_POST['notes'];
+    $created_by = $_SESSION['user_id'];
+    
+    // Calculate total amount from items
+    $total_amount = 0;
+    if (isset($_POST['items'])) {
+        foreach ($_POST['items'] as $item) {
+            $total_amount += floatval($item['quantity']) * floatval($item['unit_price']);
+        }
+    }
+    
+    // Start transaction
+    $conn->begin_transaction();
+    
+    try {
+        // Insert invoice
+        $invoice_query = "INSERT INTO invoices (
+            invoice_number, 
+            customer_name, 
+            customer_contact, 
+            invoice_date, 
+            total_amount, 
+            status, 
+            notes, 
+            created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        $stmt = $conn->prepare($invoice_query);
+        $stmt->bind_param(
+            "ssssdssi", 
+            $invoice_number,
+            $customer_name,
+            $customer_contact,
+            $invoice_date,
+            $total_amount,
+            $status,
+            $notes,
+            $created_by
+        );
+        
+        if (!$stmt->execute()) {
+            throw new Exception("Error creating invoice: " . $stmt->error);
+        }
+        
+        $invoice_id = $conn->insert_id;
+        
+        // Validate inventory quantities
+        foreach ($_POST['items'] as $item) {
+            $product_name = $item['product_name'];
+            $quantity = floatval($item['quantity']);
+            
+            $check_query = "SELECT pi.quantity 
+                           FROM product_inventory pi
+                           JOIN products p ON pi.product_id = p.product_id
+                           WHERE p.product_name = ?";
+            $check_stmt = $conn->prepare($check_query);
+            $check_stmt->bind_param("s", $product_name);
+            $check_stmt->execute();
+            $check_result = $check_stmt->get_result();
+            
+            if ($check_result->num_rows > 0) {
+                $inventory = $check_result->fetch_assoc();
+                if ($inventory['quantity'] < $quantity) {
+                    throw new Exception("Not enough inventory for product: " . htmlspecialchars($product_name) . 
+                                      " (Available: " . $inventory['quantity'] . ")");
+                }
+            } else {
+                throw new Exception("Product not found in inventory: " . htmlspecialchars($product_name));
+            }
+        }
+
+        // Insert invoice items
+        if (isset($_POST['items'])) {
+            $item_query = "INSERT INTO invoice_items (
+                invoice_id,
+                product_id,
+                product_name,
+                quantity,
+                unit,
+                unit_price,
+                discount,
+                subtotal
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            
+            $stmt = $conn->prepare($item_query);
+            
+            foreach ($_POST['items'] as $item) {
+                $product_name = $item['product_name'];
+                $quantity = floatval($item['quantity']);
+                $unit = $item['unit'];
+                $unit_price = floatval($item['unit_price']);
+                $discount = isset($item['discount']) ? floatval($item['discount']) : 0;
+                $subtotal = ($quantity * $unit_price) - $discount;
+                
+                // Get product_id
+                $product_id = null;
+                if (!empty($product_name)) {
+                    $product_query = "SELECT product_id FROM products WHERE product_name = ? LIMIT 1";
+                    $product_stmt = $conn->prepare($product_query);
+                    $product_stmt->bind_param("s", $product_name);
+                    $product_stmt->execute();
+                    $product_result = $product_stmt->get_result();
+                    if ($product_result->num_rows > 0) {
+                        $product_id = $product_result->fetch_assoc()['product_id'];
+                    }
+                }
+                
+                $stmt->bind_param(
+                    "iisisddd",
+                    $invoice_id,
+                    $product_id,
+                    $product_name,
+                    $quantity,
+                    $unit,
+                    $unit_price,
+                    $discount,
+                    $subtotal
+                );
+                
+                if (!$stmt->execute()) {
+                    throw new Exception("Error adding invoice item: " . $stmt->error);
+                }
+            }
+        }
+        
+        // Update inventory quantities
+        foreach ($_POST['items'] as $item) {
+            $product_name = $item['product_name'];
+            $quantity = floatval($item['quantity']);
+            
+            $update_query = "UPDATE product_inventory 
+                            SET quantity = quantity - ?,
+                                updated_at = NOW()
+                            WHERE product_id IN (
+                                SELECT product_id FROM products WHERE product_name = ?
+                            )";
+            $update_stmt = $conn->prepare($update_query);
+            $update_stmt->bind_param("ds", $quantity, $product_name);
+            $update_stmt->execute();
+            
+            if ($update_stmt->affected_rows === 0) {
+                error_log("Inventory not updated for product: " . $product_name);
+            }
+        }
+        
+        // Commit transaction
+        $conn->commit();
+        
+        $_SESSION['success_message'] = "Invoice created successfully!";
+        header("Location: invoice.php");
+        exit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        $error_message = $e->getMessage();
+    }
+}
+
+// Fetch products with inventory data - ENHANCED QUERY
+$products = [];
+$product_query = "SELECT p.product_id, p.product_name, pi.unit_price, pi.quantity as stock_quantity 
+                 FROM products p
+                 JOIN product_inventory pi ON p.product_id = pi.product_id
+                 WHERE p.product_name IS NOT NULL AND p.product_name != ''
+                 ORDER BY p.product_name ASC
+                 LIMIT 100";
+$result = $conn->query($product_query);
+if ($result) {
+    $products = $result->fetch_all(MYSQLI_ASSOC);
+    // Debug output
+    error_log("Products fetched: " . count($products));
+} else {
+    error_log("Product query error: " . $conn->error);
+    $products = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +203,7 @@ $username = $_SESSION['username'];
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;400;700&display=swap" rel="stylesheet">
-    <link rel="icon" href="../images/J2E logo favicon.png" type="image/x-icon">
+    <link rel="icon" href="/images/J2E logo favicon.png" type="image/x-icon">
     <style>
         :root {
             --primary-color: #db2c24;
@@ -24,7 +212,8 @@ $username = $_SESSION['username'];
             --border-color: #E0E0E0;
             --background-color: #e7e6e6;
             --nav-text-color: #db2c24;
-            --medium-gray: #777;
+            --success-color: #4CAF50;
+            --error-color: #f44336;
         }
 
         body {
@@ -32,8 +221,8 @@ $username = $_SESSION['username'];
             margin: 0;
             padding: 0;
             width: 100%;
-            background-color: var(--light-gray);
-            color: var(--dark-gray);
+            background-color: var(--background-color);
+            color: var(--text-color);
         }
 
         html {
@@ -65,8 +254,7 @@ $username = $_SESSION['username'];
             margin-bottom: 20px;
         }
 
-        .nav-left,
-        .nav-right {
+        .nav-left, .nav-right {
             display: flex;
             align-items: center;
             margin-right: 20px;
@@ -177,14 +365,6 @@ $username = $_SESSION['username'];
             text-align: center;
         }
 
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--background-color);
-            color: var(--text-color);
-        }
-
         .add-invoice-container {
             padding: 2rem;
             max-width: 1200px;
@@ -207,7 +387,6 @@ $username = $_SESSION['username'];
             gap: 0.5rem;
             text-decoration: none;
             color: white;
-
             font-weight: 500;
             padding: 0.5rem 1rem;
             border-radius: 4px;
@@ -245,7 +424,8 @@ $username = $_SESSION['username'];
         }
 
         .form-group input,
-        .form-group select {
+        .form-group select,
+        .form-group textarea {
             padding: 0.75rem;
             border: 1px solid var(--border-color);
             border-radius: 4px;
@@ -287,17 +467,6 @@ $username = $_SESSION['username'];
             -webkit-calendar-picker-indicator: none;
         }
 
-        .date-input input[type="date"]::-webkit-calendar-picker-indicator {
-            display: none;
-            -webkit-appearance: none;
-        }
-
-        .date-input input[type="date"]::-webkit-inner-spin-button,
-        .date-input input[type="date"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
         .header-amount {
             border: 1px solid var(--border-color);
             border-radius: 4px;
@@ -334,11 +503,6 @@ $username = $_SESSION['username'];
         .currency {
             color: #666;
             font-weight: 500;
-        }
-
-        .amount-input:not(.header-amount) .currency {
-            position: absolute;
-            left: 0.75rem;
         }
 
         .invoice-items {
@@ -404,272 +568,113 @@ $username = $_SESSION['username'];
             font-weight: bold;
         }
 
-        /*menu things*/
-        /* Settings and Help Modal Styles */
-	.menu-btns {
-    background-color: var(--primary-color);
-    min-height: 40px;
-    border: none;
-    padding: 12px;
-    border-radius: 5px;
-    cursor: pointer;
-    text-align: center;
-    transition: background-color 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: white;
-    font-weight: bold;
-    white-space: nowrap;
-}
-
-.menu-btns:hover {
-    background-color: var(--secondary-color);
-}
-
-.menu-btns i {
-    font-size: 14px;
-}
-
-        .settings-section,
-        .help-section {
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--light-gray);
-        }
-
-        .setting-item {
+        /* New styles for item management */
+        .alert {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin: 10px 0;
-            padding: 8px 0;
+            gap: 0.5rem;
         }
-
-        .setting-btn {
+        
+        .alert-success {
+            background-color: #e8f5e9;
+            color: var(--success-color);
+            border: 1px solid #c8e6c9;
+        }
+        
+        .alert-error {
+            background-color: #ffebee;
+            color: var(--error-color);
+            border: 1px solid #ffcdd2;
+        }
+        
+        .btn-add-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
             background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
             cursor: pointer;
+            margin-top: 1rem;
         }
-
-        .setting-btn:hover {
+        
+        .btn-add-item:hover {
             background-color: var(--secondary-color);
         }
-
-        .setting-select,
-        .setting-input {
-            padding: 5px;
-            border: 1px solid var(--light-gray);
-            border-radius: 3px;
-            width: 150px;
-        }
-
-        .settings-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .save-btn {
-            background-color: #28a745;
-        }
-
-        .cancel-btn {
-            background-color: var(--medium-gray);
-        }
-
-        .help-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .help-list li {
-            margin: 8px 0;
-        }
-
-        .help-list a {
-            color: var(--primary-color);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .help-list a:hover {
-            text-decoration: underline;
-        }
-
-        .contact-info {
-            margin-left: 10px;
-        }
-
-        .contact-info p {
-            margin: 8px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .issue-form .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-input,
-        .form-textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid var(--light-gray);
-            border-radius: 4px;
-        }
-
-        .form-textarea {
-            resize: vertical;
-        }
-
-        /*FOOTER CSS starts here*/
-        .footer-fullwidth {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            background-image: url('../images/footerBackground.png');
-            background-position: 60%;
-            background-size: cover;
-            height: 400px;
-            padding: 40px 0;
-            margin-top: 0px;
-            margin-bottom: -50px;
-        }
-
-        .footer-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        .footer-content {
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .footer-content h4 {
-            color: var(--primary-color);
-            font-size: 1.5rem;
-        }
-
-        .footer-left {
-            margin-top: 15px;
-            margin-right: 100px;
-            justify-content: flex-end;
-        }
-
-        .footer-left img {
-            height: 150px;
-        }
-
-        .footer-right {
-            display: flex;
-            gap: 60px;
-            justify-content: flex-end;
-        }
-
-        .footer-right ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            line-height: 1.5rem;
-        }
-
-        .footer-right a {
-            text-decoration: none;
-            transition: color 0.2s;
-            color: var(--dark-gray);
-        }
-
-        .footer-right a:hover {
-            color: var(--primary-color);
-            font-weight: bold;
-            text-decoration: none;
-        }
-
-        .footer-info {
-            max-width: 800px;
-            margin: 30px auto 0;
-            padding: 0 20px;
-            font-size: 0.8rem;
-            text-align: center;
-            color: var(--dark-gray);
-        }
-
-
-        .footer-legal {
-            text-align: center;
-            margin-top: 20px;
-            padding: 10px 0;
-            font-size: 0.8rem;
-            color: var(--dark-gray);
-        }
-
-        .footer-legal a {
-            color: var(--dark-gray);
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .footer-legal a:hover {
-            color: var(--primary-color);
-            text-decoration: underline;
-        }
-
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.7);
-        }
-
-        .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 20px;
-            border-radius: 5px;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            position: relative;
-            top: 40%;
-            transform: translateY(-50%);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .close-modal {
-            position: absolute;
-            right: 15px;
-            top: 5px;
-            font-size: 24px;
+        
+        .btn-remove-item {
+            background: none;
+            border: none;
+            color: #666;
             cursor: pointer;
-            color: var(--dark-gray);
+            padding: 0.5rem;
+        }
+        
+        .btn-remove-item:hover {
+            color: var(--primary-color);
+        }
+        
+        .product-autocomplete {
+            position: relative;
+        }
+        
+        .product-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 4px 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+        
+        .product-suggestion {
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .product-suggestion:hover {
+            background-color: #f5f5f5;
         }
 
-        .close-modal:hover {
-            color: var(--primary-color);
+        .loading {
+            padding: 0.5rem;
+            color: var(--medium-gray);
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .nav-center {
+                display: none;
+            }
+            .invoice-items {
+                margin: 1rem -1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .company-name {
+                display: none;
+            }
+            .nav-right .username {
+                display: none;
+            }
         }
     </style>
 </head>
-
 <body>
     <!-- Navigation Header -->
     <nav class="top-nav">
@@ -685,21 +690,21 @@ $username = $_SESSION['username'];
                 <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
                 <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
                 <li><a href="../user/user_management.php"><i class="fas fa-solid fa-user"></i> User</a></li>
-                <li><a href="../invoice/invoice.html" class="active"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+                <li><a href="../invoice/invoice.php" class="active"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
 
         <div class="nav-right">
             <div class="user-info">
                 <img src="../images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
-                <span class="username">Username</span>
+                <span class="username"><?php echo htmlspecialchars($username); ?></span>
                 <button class="hamburger" id="menuDropdown">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="#settings"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="#help"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="../menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="../menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -713,23 +718,34 @@ $username = $_SESSION['username'];
 
         <!-- Invoice Management Button -->
         <div class="management-button">
-            <a href="/invoice/invoice.html" class="btn-back">
+            <a href="../invoice/invoice.php" class="btn-back">
                 <i class="material-icons">keyboard_backspace</i>
                 Invoice Management
             </a>
         </div>
 
+        <?php if (isset($error_message)): ?>
+            <div class="alert alert-error">
+                <i class="material-icons">error</i>
+                <?php echo htmlspecialchars($error_message); ?>
+            </div>
+        <?php endif; ?>
+
         <!-- Invoice Form -->
-        <div class="invoice-form">
+        <form class="invoice-form" method="POST" action="invoice_add.php">
             <!-- Invoice Header Information -->
             <div class="form-header">
                 <div class="form-group">
                     <label>Invoice No.</label>
-                    <input type="text" placeholder="Enter invoice number">
+                    <input type="text" name="invoice_number" placeholder="Enter invoice number" required>
                 </div>
                 <div class="form-group">
                     <label>Client Name</label>
-                    <input type="text" placeholder="Enter client name">
+                    <input type="text" name="customer_name" placeholder="Enter client name" required>
+                </div>
+                <div class="form-group">
+                    <label>Client Contact</label>
+                    <input type="text" name="customer_contact" placeholder="Enter client contact">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -738,47 +754,31 @@ $username = $_SESSION['username'];
                             <div class="calendar-icon">
                                 <i class="material-icons">calendar_today</i>
                             </div>
-                            <input type="date" placeholder="00/00/0000">
+                            <input type="date" name="invoice_date" required>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Total Due</label>
-                        <div class="amount-input header-amount">
-                            <div class="currency-icon">
-                                <span class="currency">₱</span>
-                            </div>
-                            <input type="text" placeholder="00.00">
-                        </div>
-                    </div>
-                </div>
-                <div class="form-row">
                     <div class="form-group">
                         <label>Due Date</label>
                         <div class="date-input">
                             <div class="calendar-icon">
                                 <i class="material-icons">calendar_today</i>
                             </div>
-                            <input type="date" placeholder="00/00/0000">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Balance</label>
-                        <div class="amount-input header-amount">
-                            <div class="currency-icon">
-                                <span class="currency">₱</span>
-                            </div>
-                            <input type="text" placeholder="00.00">
+                            <input type="date" name="due_date" required>
                         </div>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>Status</label>
-                    <select>
-                        <option value="" disabled selected>- Select -</option>
+                    <select name="status" required>
                         <option value="draft">Draft</option>
+                        <option value="pending">Pending</option>
                         <option value="partial">Partial Payment</option>
                         <option value="paid">Paid</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" placeholder="Additional notes"></textarea>
                 </div>
             </div>
 
@@ -787,374 +787,354 @@ $username = $_SESSION['username'];
                 <table>
                     <thead>
                         <tr>
+                            <th>PRODUCT</th>
                             <th>QUANTITY</th>
                             <th>UNIT</th>
-                            <th>ARTICLES</th>
                             <th>UNIT PRICE</th>
+                            <th>DISCOUNT</th>
                             <th>AMOUNT</th>
-                            <th>TOTAL SALES</th>
-                            <th>LESS: SC/PWD-DISCOUNT</th>
-                            <th>TOTAL DUE</th>
+                            <th>ACTION</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr>
-                            <td><input type="text" class="quantity" placeholder="Quantity"></td>
-                            <td><input type="text" class="unit" placeholder="uUnit"></td>
-                            <td><input type="text" class="article" placeholder="Article 1"></td>
+                    <tbody id="items-container">
+                        <!-- Initial empty row -->
+                        <tr class="item-row">
+                            <td class="product-autocomplete">
+                                <input type="text" name="items[0][product_name]" class="product-name" placeholder="Product name" required>
+                                <div class="product-suggestions"></div>
+                            </td>
+                            <td>
+                                <input type="number" name="items[0][quantity]" class="quantity" placeholder="Qty" min="1" step="1" value="1" required>
+                            </td>
+                            <td>
+                                <input type="text" name="items[0][unit]" class="unit" placeholder="Unit" value="pcs">
+                            </td>
                             <td>
                                 <div class="amount-input">
-                                    <input type="text" placeholder="Unit price">
+                                    <input type="number" name="items[0][unit_price]" class="unit-price" placeholder="0.00" min="0" step="0.01" required>
                                 </div>
                             </td>
                             <td>
                                 <div class="amount-input">
-                                    <input type="text" placeholder="Amount">
+                                    <input type="number" name="items[0][discount]" class="discount" placeholder="0.00" min="0" step="0.01" value="0">
                                 </div>
                             </td>
                             <td>
                                 <div class="amount-input">
-                                    <input type="text" placeholder="Total sales">
+                                    <input type="number" class="amount" placeholder="0.00" readonly>
                                 </div>
                             </td>
                             <td>
-                                <div class="amount-input">
-                                    <input type="text" placeholder="Discount">
-                                </div>
-                            </td>
-                            <td>
-                                <div class="amount-input">
-                                    <input type="text"  placeholder="Total due">
-                                </div>
+                                <button type="button" class="btn-remove-item" disabled>
+                                    <i class="material-icons">delete</i>
+                                </button>
                             </td>
                         </tr>
                     </tbody>
                 </table>
+                
+                <button type="button" id="add-item" class="btn-add-item">
+                    <i class="material-icons">add</i> Add Item
+                </button>
+                
+                <div class="form-row" style="margin-top: 2rem;">
+                    <div class="form-group" style="flex: 1;"></div>
+                    <div class="form-group">
+                        <label>Subtotal</label>
+                        <div class="amount-input header-amount">
+                            <div class="currency-icon">
+                                <span class="currency">₱</span>
+                            </div>
+                            <input type="number" id="subtotal" placeholder="0.00" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;"></div>
+                    <div class="form-group">
+                        <label>Total Discount</label>
+                        <div class="amount-input header-amount">
+                            <div class="currency-icon">
+                                <span class="currency">₱</span>
+                            </div>
+                            <input type="number" id="total-discount" placeholder="0.00" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;"></div>
+                    <div class="form-group">
+                        <label>Total Amount</label>
+                        <div class="amount-input header-amount">
+                            <div class="currency-icon">
+                                <span class="currency">₱</span>
+                            </div>
+                            <input type="number" name="total_amount" id="total-amount" placeholder="0.00" readonly>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Save Button -->
             <div class="form-actions">
-                <button class="btn-save">
+                <button type="submit" class="btn-save">
                     <i class="material-icons">save</i>
                     Save New Invoice
                 </button>
             </div>
-        </div>
+        </form>
     </div>
 
-    
-  <!--Menu things-->
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3><i class="fas fa-cog"></i> System Settings</h3>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-user-cog"></i> Account Settings</h4>
-                <div class="setting-item">
-                    <label>Change Password</label>
-                    <button class="setting-btn">Update</button>
-                </div>
-                <div class="setting-item">
-                    <label>Notification Preferences</label>
-                    <button class="setting-btn">Configure</button>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-sliders-h"></i> System Preferences</h4>
-                <div class="setting-item">
-                    <label>Theme Color</label>
-                    <select class="setting-select">
-                        <option>Red (Default)</option>
-                        <option>Blue</option>
-                        <option>Green</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <label>Items Per Page</label>
-                    <input type="number" class="setting-input" value="25" min="10" max="100">
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-database"></i> Data Management</h4>
-                <div class="setting-item">
-                    <label>Export Inventory Data</label>
-                    <button class="setting-btn">CSV Export</button>
-                </div>
-                <div class="setting-item">
-                    <label>Backup System</label>
-                    <button class="setting-btn">Create Backup</button>
-                </div>
-            </div>
-
-            <div class="settings-actions">
-                <button class="menu-btns save-btn"><i class="fas fa-save"></i> Save Changes</button>
-                <button class="menu-btns cancel-btn"><i class="fas fa-times"></i> Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Help Modal -->
-    <div id="help-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3><i class="fas fa-question-circle"></i> Help Center</h3>
-
-            <div class="help-section">
-                <h4><i class="fas fa-book"></i> Documentation</h4>
-                <ul class="help-list">
-                    <li><a href="#"><i class="fas fa-file-alt"></i> User Manual</a></li>
-                    <li><a href="#"><i class="fas fa-video"></i> Video Tutorials</a></li>
-                    <li><a href="#"><i class="fas fa-chart-bar"></i> Inventory Management Guide</a></li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h4><i class="fas fa-headset"></i> Support</h4>
-                <div class="contact-info">
-                    <p><i class="fas fa-envelope"></i> Email: support@j2ehealthcare.com</p>
-                    <p><i class="fas fa-phone"></i> Phone: (02) 8123-4567</p>
-                    <p><i class="fas fa-clock"></i> Hours: Mon-Fri, 9AM-5PM</p>
-                </div>
-            </div>
-
-            <div class="help-section">
-                <h4><i class="fas fa-bug"></i> Report an Issue</h4>
-                <form class="issue-form">
-                    <div class="form-group">
-                        <label>Subject</label>
-                        <input type="text" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea class="form-textarea" rows="4"></textarea>
-                    </div>
-                    <button type="submit" class="menu-btns"><i class="fas fa-paper-plane"></i> Submit</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!--footer thingies-->
-    <div class="footer-fullwidth">
-        <div class="footer-container">
-            <div class="footer-content">
-                <div class="footer-left">
-                    <img src="../images/J2E-logo3.png">
-                </div>
-                <div class="footer-right">
-                    <div>
-                        <h4>Products</h4>
-                        <ul>
-                            <li>Supply</li>
-                            <li>Equipment</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4>Navigation</h4>
-                        <ul>
-                            <li><a href="/home/dashboard.html">Home</a></li>
-                            <li><a href="/inventory/inventory.html">Inventory</a></li>
-                            <li><a href="/category/category.html">Category</a></li>
-                            <li><a href="/user/user-management.html">User</a></li>
-                            <li><a href="/invoice/invoice.html">Invoice</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            <div class="footer-info">
-                <p>J2E Healthcare Trading was established on September 30, 2020, and is registered with the
-                    Department of Trade and Industry (DTI) under BNN 2155601. It specializes in physical and
-                    occupational therapy supplies and equipment with a national scope.</p>
-            </div>
-
-            <div class="footer-legal">
-                <p>
-                    © 2024 J2E Healthcare Trading. All Rights Reserved. |
-                    <a href="#" class="legal-link" id="privacy-policy-link">Privacy Policy</a> |
-                    <a href="#" class="legal-link" id="terms-service-link">Terms of Service</a>
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div id="privacy-policy-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3>Privacy Policy</h3>
-            <p><em>Last Updated: July 17, 2025</em></p>
-
-            <p>This Privacy Policy governs how J2E Healthcare Trading ("we," "us") collects, uses, and protects your
-                data in our inventory management system.</p>
-
-            <h4>2. Data We Collect</h4>
-            <ul>
-                <li><strong>Account Information:</strong> Names, emails, usernames, passwords.</li>
-                <li><strong>Inventory Data:</strong> Product details, supplier info, transaction records.</li>
-                <li><strong>Automated Data:</strong> IP addresses, cookies (if used for analytics).</li>
-            </ul>
-
-            <h4>3. How We Use Data</h4>
-            <ul>
-                <li>To manage user access and system functionality.</li>
-                <li>To track inventory, sales, and business operations.</li>
-                <li>To comply with legal obligations (e.g., tax records).</li>
-            </ul>
-
-            <h4>4. Data Protection</h4>
-            <p>We implement security measures like encryption (SSL), access controls, and regular audits to protect your
-                data.</p>
-
-            <h4>5. Third-Party Sharing</h4>
-            <p>Data is only shared with essential service providers (e.g., hosting). We never sell your information.</p>
-
-            <h4>6. Your Rights</h4>
-            <p>You may request access, correction, or deletion of your personal data by contacting us at [Your Email].
-            </p>
-
-            <h4>7. Policy Updates</h4>
-            <p>Changes will be posted here. Continued use of the system constitutes acceptance.</p>
-
-            <p><strong>Contact Us:</strong> For questions, email j2e_admin@gmail.com or call 09452222222.</p>
-        </div>
-    </div>
-
-    <div id="terms-service-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3>Terms of Service</h3>
-            <p><em>Last Updated: July 17, 2025</em></p>
-
-            <h4>1. Acceptance</h4>
-            <p>By accessing our inventory management system, you agree to these Terms.</p>
-
-            <h4>2. User Responsibilities</h4>
-            <ul>
-                <li>Keep login credentials secure.</li>
-                <li>Enter accurate inventory/sales data.</li>
-                <li>Do not share accounts or misuse the system.</li>
-            </ul>
-
-            <h4>3. Prohibited Actions</h4>
-            <ul>
-                <li>Reverse-engineering or hacking the software.</li>
-                <li>Uploading false/misleading data.</li>
-                <li>Using the system for illegal activities.</li>
-            </ul>
-
-            <h4>4. Intellectual Property</h4>
-            <p>The software, logos, and content are owned by J2E Healthcare Trading. Unauthorized use is prohibited.</p>
-
-            <h4>5. Limitation of Liability</h4>
-            <p>We are not liable for:</p>
-            <ul>
-                <li>Data loss due to user error.</li>
-                <li>System downtime beyond our control.</li>
-            </ul>
-
-            <h4>6. Termination</h4>
-            <p>We may suspend accounts for violations of these Terms.</p>
-
-            <h4>7. Governing Law</h4>
-            <p>These Terms are governed by the laws of the Philippines.</p>
-
-            <p><strong>Contact Us:</strong> For disputes or questions, email j2e_admin@gmail.com.</p>
-        </div>
-    </div>
-<script>
-    // Dropdown and modal functionality
-    function closeAllDropdowns(exceptElement) {
-        if (!exceptElement || !exceptElement.closest('#userDropdown')) {
-            document.getElementById('userDropdown').classList.remove('show');
-        }
-    }
-
-    // User dropdown toggle
-    document.getElementById('menuDropdown').addEventListener('click', function(e) {
-        e.stopPropagation();
-        const userDropdown = document.getElementById('userDropdown');
-        const wasOpen = userDropdown.classList.contains('show');
-
-        closeAllDropdowns();
-        if (!wasOpen) {
-            userDropdown.classList.add('show');
-        }
-    });
-
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', function(e) {
-        closeAllDropdowns(e.target);
-    });
-
-    // Logout functionality
-    document.getElementById('logoutBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        fetch('../authenticate/logout.php')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = '../authenticate/login.php';
-                } else {
-                    alert('Logout failed. Please try again.');
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Product suggestions data
+            const products = <?php echo json_encode($products); ?>;
+            console.log("Products loaded:", products); // Debug output
+            
+            // Add new item row
+            let itemCount = 1;
+            document.getElementById('add-item').addEventListener('click', function() {
+                const container = document.getElementById('items-container');
+                const newRow = document.createElement('tr');
+                newRow.className = 'item-row';
+                newRow.innerHTML = `
+                    <td class="product-autocomplete">
+                        <input type="text" name="items[${itemCount}][product_name]" class="product-name" placeholder="Product name" required>
+                        <div class="product-suggestions"></div>
+                    </td>
+                    <td>
+                        <input type="number" name="items[${itemCount}][quantity]" class="quantity" placeholder="Qty" min="1" step="1" value="1" required>
+                    </td>
+                    <td>
+                        <input type="text" name="items[${itemCount}][unit]" class="unit" placeholder="Unit" value="pcs">
+                    </td>
+                    <td>
+                        <div class="amount-input">
+                            <input type="number" name="items[${itemCount}][unit_price]" class="unit-price" placeholder="0.00" min="0" step="0.01" required>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="amount-input">
+                            <input type="number" name="items[${itemCount}][discount]" class="discount" placeholder="0.00" min="0" step="0.01" value="0">
+                        </div>
+                    </td>
+                    <td>
+                        <div class="amount-input">
+                            <input type="number" class="amount" placeholder="0.00" readonly>
+                        </div>
+                    </td>
+                    <td>
+                        <button type="button" class="btn-remove-item">
+                            <i class="material-icons">delete</i>
+                        </button>
+                    </td>
+                `;
+                container.appendChild(newRow);
+                itemCount++;
+                
+                // Initialize event listeners for the new row
+                initRowEvents(newRow);
+                
+                // Enable remove buttons if there's more than one row
+                updateRemoveButtons();
+            });
+            
+            // Initialize event listeners for existing rows
+            document.querySelectorAll('.item-row').forEach(row => {
+                initRowEvents(row);
+            });
+            
+            // Update remove buttons initially
+            updateRemoveButtons();
+            
+            // Function to initialize event listeners for a row
+            function initRowEvents(row) {
+                const productInput = row.querySelector('.product-name');
+                const quantityInput = row.querySelector('.quantity');
+                const unitPriceInput = row.querySelector('.unit-price');
+                const discountInput = row.querySelector('.discount');
+                const amountInput = row.querySelector('.amount');
+                const suggestionsDiv = row.querySelector('.product-suggestions');
+                const unitInput = row.querySelector('.unit');
+                
+                // Calculate amount when quantity or price changes
+                function calculateAmount() {
+                    const quantity = parseFloat(quantityInput.value) || 0;
+                    const unitPrice = parseFloat(unitPriceInput.value) || 0;
+                    const discount = parseFloat(discountInput.value) || 0;
+                    const amount = (quantity * unitPrice) - discount;
+                    
+                    amountInput.value = amount.toFixed(2);
+                    calculateTotals();
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred during logout. Please try again.');
-            });
-    });
-
-    // Modal functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const modals = {
-            privacy: document.getElementById('privacy-policy-modal'),
-            terms: document.getElementById('terms-service-modal'),
-            settings: document.getElementById('settings-modal'),
-            help: document.getElementById('help-modal')
-        };
-
-        const modalTriggers = {
-            privacy: document.getElementById('privacy-policy-link'),
-            terms: document.getElementById('terms-service-link'),
-            settings: document.querySelector('.user-dropdown a[href="#settings"]'),
-            help: document.querySelector('.user-dropdown a[href="#help"]')
-        };
-
-        const closeButtons = document.querySelectorAll('.close-modal');
-
-        function closeAllModals() {
-            Object.values(modals).forEach(modal => {
-                if (modal) modal.style.display = 'none';
-            });
-        }
-
-        Object.entries(modalTriggers).forEach(([key, trigger]) => {
-            if (trigger) {
-                trigger.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    closeAllDropdowns();
-                    closeAllModals();
-                    if (modals[key]) modals[key].style.display = 'block';
+                
+                quantityInput.addEventListener('change', calculateAmount);
+                unitPriceInput.addEventListener('change', calculateAmount);
+                discountInput.addEventListener('change', calculateAmount);
+                
+                // Product autocomplete
+                productInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    suggestionsDiv.innerHTML = '<div class="loading">Loading...</div>';
+                    suggestionsDiv.style.display = 'block';
+                    
+                    const filteredProducts = products.filter(product => 
+                        product.product_name && product.product_name.toLowerCase().includes(searchTerm)
+                    );
+                    
+                    showSuggestions(filteredProducts, suggestionsDiv, productInput, unitPriceInput, unitInput);
+                });
+                
+                productInput.addEventListener('focus', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const filteredProducts = products.filter(product => 
+                        product.product_name && product.product_name.toLowerCase().includes(searchTerm)
+                    );
+                    
+                    showSuggestions(filteredProducts, suggestionsDiv, productInput, unitPriceInput, unitInput);
+                });
+                
+                productInput.addEventListener('blur', function() {
+                    setTimeout(() => {
+                        suggestionsDiv.style.display = 'none';
+                    }, 200);
                 });
             }
-        });
-
-        closeButtons.forEach(button => {
-            button.addEventListener('click', closeAllModals);
-        });
-
-        window.addEventListener('click', function(e) {
-            Object.values(modals).forEach(modal => {
-                if (modal && e.target === modal) {
-                    modal.style.display = 'none';
+            
+            // Enhanced showSuggestions function
+            function showSuggestions(filteredProducts, suggestionsDiv, productInput, unitPriceInput, unitInput) {
+                suggestionsDiv.innerHTML = '';
+                
+                if (!filteredProducts || filteredProducts.length === 0) {
+                    suggestionsDiv.innerHTML = '<div class="loading">No products found</div>';
+                    return;
+                }
+                
+                filteredProducts.forEach(product => {
+                    // Skip products without a name
+                    if (!product.product_name || product.product_name.trim() === '') return;
+                    
+                    const suggestion = document.createElement('div');
+                    suggestion.className = 'product-suggestion';
+                    
+                    // Format price and stock display
+                    const price = product.unit_price ? parseFloat(product.unit_price).toFixed(2) : '0.00';
+                    const stock = product.stock_quantity || 0;
+                    
+                    suggestion.innerHTML = `
+                        <div style="font-weight:bold;">${product.product_name}</div>
+                        <div style="font-size:0.8em;color:#666;">
+                            ₱${price} | Stock: ${stock}
+                        </div>
+                    `;
+                    
+                    suggestion.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        productInput.value = product.product_name;
+                        unitPriceInput.value = price;
+                        
+                        // Auto-fill unit if empty
+                        if (unitInput && !unitInput.value) {
+                            unitInput.value = 'pcs'; // Default unit
+                        }
+                        
+                        suggestionsDiv.style.display = 'none';
+                        
+                        // Show stock warnings
+                        if (stock < 1) {
+                            alert(`Warning: ${product.product_name} is out of stock!`);
+                        } else if (stock < 5) {
+                            alert(`Warning: Low stock for ${product.product_name} (${stock} remaining)`);
+                        }
+                        
+                        // Trigger calculations
+                        const event = new Event('change');
+                        unitPriceInput.dispatchEvent(event);
+                        productInput.closest('.item-row').querySelector('.quantity').focus();
+                    });
+                    
+                    suggestionsDiv.appendChild(suggestion);
+                });
+                
+                suggestionsDiv.style.display = 'block';
+            }
+            
+            // Remove item row
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.btn-remove-item')) {
+                    const row = e.target.closest('.item-row');
+                    row.remove();
+                    calculateTotals();
+                    updateRemoveButtons();
                 }
             });
+            
+            // Calculate all totals
+            function calculateTotals() {
+                let subtotal = 0;
+                let totalDiscount = 0;
+                
+                document.querySelectorAll('.item-row').forEach(row => {
+                    const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
+                    const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
+                    const discount = parseFloat(row.querySelector('.discount').value) || 0;
+                    
+                    subtotal += quantity * unitPrice;
+                    totalDiscount += discount;
+                });
+                
+                document.getElementById('subtotal').value = subtotal.toFixed(2);
+                document.getElementById('total-discount').value = totalDiscount.toFixed(2);
+                document.getElementById('total-amount').value = (subtotal - totalDiscount).toFixed(2);
+            }
+            
+            // Enable/disable remove buttons based on row count
+            function updateRemoveButtons() {
+                const rows = document.querySelectorAll('.item-row');
+                const removeButtons = document.querySelectorAll('.btn-remove-item');
+                
+                if (rows.length <= 1) {
+                    removeButtons.forEach(btn => btn.disabled = true);
+                } else {
+                    removeButtons.forEach(btn => btn.disabled = false);
+                }
+            }
+            
+            // Set today's date as default for invoice date
+            const today = new Date().toISOString().split('T')[0];
+            document.querySelector('input[name="invoice_date"]').value = today;
+            
+            // Set due date to 30 days from today
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 30);
+            document.querySelector('input[name="due_date"]').value = dueDate.toISOString().split('T')[0];
         });
-    });
-</script>
-</body>
+        
+        // Dropdown and logout functionality
+        const userDropdown = document.getElementById('userDropdown');
+        document.getElementById('menuDropdown').onclick = (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        };
+        
+        document.addEventListener('click', () => userDropdown.classList.remove('show'));
 
+        document.getElementById('logoutBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            fetch('../authenticate/logout.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '../authenticate/login.php';
+                    } else {
+                        alert('Logout failed. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred during logout. Please try again.');
+                });
+        });
+    </script>
+</body>
 </html>

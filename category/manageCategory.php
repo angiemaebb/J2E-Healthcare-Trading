@@ -2,29 +2,87 @@
 require_once '../config/db.php';
 require_once '../config/session_check.php';
 
-// Fetch uncategorized products from database
-$productsQuery = "SELECT product_id, product_name, sku FROM products WHERE category_id IS NULL ORDER BY product_name";
-$productsStmt = $pdo->query($productsQuery);
-$products = $productsStmt->fetchAll();
+// Get username from session
+$username = $_SESSION['username'];
 
-// Fetch existing categories with product counts
-$categoriesQuery = "SELECT c.*, 
-                   (SELECT COUNT(*) FROM products p WHERE p.category_id = c.category_id) as product_count
-                   FROM categories c
-                   ORDER BY c.category_name";
-$categoriesStmt = $pdo->query($categoriesQuery);
-$categories = $categoriesStmt->fetchAll();
+// Get category ID from URL
+$category_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-// Get username for display
-if (!isset($username) && isset($_SESSION['username'])) {
-    $username = $_SESSION['username'];
+// Initialize variables
+$category_name = '';
+$category_description = '';
+$products = [];
+$category_products = [];
+
+// Fetch category details
+if ($category_id > 0) {
+    try {
+        // Get category info
+        $stmt = $pdo->prepare("SELECT * FROM categories WHERE category_id = ?");
+        $stmt->execute([$category_id]);
+        $category = $stmt->fetch();
+        
+        if ($category) {
+            $category_name = $category['category_name'];
+            $category_description = $category['description'];
+            
+            // Get products already in this category
+            $stmt = $pdo->prepare("SELECT product_id FROM products WHERE category_id = ?");
+            $stmt->execute([$category_id]);
+            $category_products = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        }
+        
+        // Get all products not assigned to any category
+        $stmt = $pdo->prepare("SELECT product_id, product_name, sku FROM products WHERE category_id IS NULL OR category_id = 0");
+        $stmt->execute();
+        $products = $stmt->fetchAll();
+        
+    } catch (PDOException $e) {
+        $_SESSION['error'] = "Database error: " . $e->getMessage();
+    }
 }
 
-// Handle logout
-if (isset($_POST['logout'])) {
-    session_destroy();
-    header("Location: ../authenticate/login.php");
-    exit();
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $category_id > 0) {
+    try {
+        $pdo->beginTransaction();
+        
+        // Get form data
+        $new_name = trim($_POST['categoryName']);
+        $new_description = trim($_POST['description']);
+        $selected_items = isset($_POST['items']) ? $_POST['items'] : [];
+        
+        // Validate
+        if (empty($new_name)) {
+            throw new Exception("Category name is required");
+        }
+        
+        // Update category
+        $stmt = $pdo->prepare("UPDATE categories SET category_name = ?, description = ? WHERE category_id = ?");
+        $stmt->execute([$new_name, $new_description, $category_id]);
+        
+        // First remove all products from this category
+        $stmt = $pdo->prepare("UPDATE products SET category_id = NULL WHERE category_id = ?");
+        $stmt->execute([$category_id]);
+        
+        // Then add selected products to this category
+        if (!empty($selected_items)) {
+            $placeholders = implode(',', array_fill(0, count($selected_items), '?'));
+            $stmt = $pdo->prepare("UPDATE products SET category_id = ? WHERE product_id IN ($placeholders)");
+            $stmt->execute(array_merge([$category_id], $selected_items));
+        }
+        
+        $pdo->commit();
+        $_SESSION['success'] = "Category updated successfully!";
+        header("Location: category_edit.php?id=".$category_id);
+        exit();
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        $_SESSION['error'] = "Error: " . $e->getMessage();
+        header("Location: category_edit.php?id=".$category_id);
+        exit();
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -35,7 +93,7 @@ if (isset($_POST['logout'])) {
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
     <link rel="icon" href="../images/J2E logo favicon.png" type="image/x-icon">
-    <title>Add Category - J2E Healthcare</title>
+    <title>Edit Category - J2E Healthcare</title>
     <style>
         :root {
             --main-color: #db2c24;
@@ -151,6 +209,7 @@ if (isset($_POST['logout'])) {
             border-radius: 5px;
             padding: 10px 0;
             display: none;
+            z-index: 1001;
         }
 
         .user-dropdown.show {
@@ -530,7 +589,7 @@ if (isset($_POST['logout'])) {
             <ul class="nav-menu">
                 <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
                 <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="../category/category_add.php" class="active"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="../category/viewCategories.php" class="active"><i class="fas fa-tags"></i> Category</a></li>
                 <li><a href="../user/user_management.php"><i class="fas fa-user"></i> User</a></li>
                 <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
@@ -539,14 +598,14 @@ if (isset($_POST['logout'])) {
         <div class="nav-right">
             <div class="user-info">
                 <img src="../images/sample user profile pic.jpg" alt="User Profile" class="user-profile">
-                <span class="username"><?php echo isset($username) ? htmlspecialchars($username) : 'User'; ?></span>
+                <span class="username"><?php echo htmlspecialchars($username); ?></span>
                 <button class="hamburger" id="menuDropdown">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="#"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="#"><i class="fas fa-question-circle"></i> Help</a>
-                    <form method="POST" style="margin: 0;">
+                    <a href="../menu/settings.php"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="../menu/help.php"><i class="fas fa-question-circle"></i> Help</a>
+                    <form method="POST" action="../authenticate/logout.php" style="margin: 0;">
                         <button type="submit" name="logout" style="background: none; border: none; width: 100%; text-align: left; padding: 10px 15px; color: var(--main-color); font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 10px;">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </button>
@@ -558,50 +617,59 @@ if (isset($_POST['logout'])) {
 
     <div class="content">
         <div class="page-header">
-            <h1 class="page-title">Category Management</h1>
+            <h1 class="page-title">Edit Category</h1>
         </div>
 
         <div class="layout-container">
-            <!-- Existing Categories Section -->
+            <!-- Category Details Section -->
             <div class="existing-categories">
-                <h2 class="section-header">Existing Categories</h2>
+                <h2 class="section-header">Category Details</h2>
                 
                 <div class="categories-box">
-                    <ul class="categories-list">
-                        <?php foreach ($categories as $category): ?>
-                            <li class="category-item">
-                                <div class="category-name"><?php echo htmlspecialchars($category['category_name']); ?></div>
-                                <div class="category-description">
-                                    <?php echo htmlspecialchars($category['description'] ?? 'No description'); ?>
-                                </div>
-                                <div class="category-stats">
-                                    <span><?php echo $category['product_count']; ?> items</span>
-                                    <span>Last updated: <?php echo date('Y-m-d', strtotime($category['updated_at'])); ?></span>
-                                </div>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
+                    <?php if ($category_id > 0): ?>
+                        <div class="category-item">
+                            <div class="category-name"><?php echo htmlspecialchars($category_name); ?></div>
+                            <div class="category-description">
+                                <?php echo htmlspecialchars($category_description); ?>
+                            </div>
+                            <div class="category-stats">
+                                <span><?php echo count($category_products); ?> items</span>
+                                <span>Category ID: <?php echo $category_id; ?></span>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <div class="category-item">
+                            <div class="category-name">No category selected</div>
+                            <div class="category-description">
+                                Please select a category to edit from the categories list.
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <!-- Add New Category Section -->
+            <!-- Edit Category Section -->
             <div class="new-category">
-                <h2 class="section-header">Add New Category</h2>
+                <h2 class="section-header"><?php echo $category_id ? 'Edit' : 'Select'; ?> Category</h2>
                 
-                <form id="categoryForm" action="category_process.php" method="POST">
+                <?php if ($category_id > 0): ?>
+                <form id="categoryForm" method="POST" action="category_edit.php?id=<?php echo $category_id; ?>">
                     <div class="form-group">
                         <label for="categoryName">Category Name <span class="required">*</span></label>
-                        <input type="text" id="categoryName" name="categoryName" placeholder="Enter category name" required>
+                        <input type="text" id="categoryName" name="categoryName" 
+                               value="<?php echo htmlspecialchars($category_name); ?>" 
+                               placeholder="Enter category name" required>
                     </div>
 
                     <div class="form-group">
                         <label for="categoryDescription">Description</label>
-                        <textarea id="categoryDescription" name="description" placeholder="Enter category description" rows="3"></textarea>
+                        <textarea id="categoryDescription" name="description" 
+                                  placeholder="Enter category description" rows="3"><?php echo htmlspecialchars($category_description); ?></textarea>
                     </div>
 
                     <div class="items-section">
                         <div class="items-header">
-                            <div class="section-label">Items under this category</div>
+                            <div class="section-label">Items in this category</div>
                             <div class="search-box">
                                 <i class="fas fa-search"></i>
                                 <input type="text" id="itemSearch" placeholder="Search items...">
@@ -614,18 +682,27 @@ if (isset($_POST['logout'])) {
                                 <div class="item-header item-sku-col">SKU</div>
                                 
                                 <div class="items-list">
-                                    <?php foreach ($products as $product): ?>
+                                    <?php if (empty($products)): ?>
                                         <div class="item-row">
-                                            <div class="item-name item-name-col">
-                                                <input type="checkbox" id="item<?php echo $product['product_id']; ?>" 
-                                                       name="items[]" value="<?php echo $product['product_id']; ?>">
-                                                <label for="item<?php echo $product['product_id']; ?>">
-                                                    <?php echo htmlspecialchars($product['product_name']); ?>
-                                                </label>
+                                            <div class="item-name item-name-col" style="grid-column: 1 / -1;">
+                                                No products available to assign
                                             </div>
-                                            <div class="item-sku item-sku-col"><?php echo htmlspecialchars($product['sku']); ?></div>
                                         </div>
-                                    <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <?php foreach ($products as $product): ?>
+                                            <div class="item-row">
+                                                <div class="item-name item-name-col">
+                                                    <input type="checkbox" id="item<?php echo $product['product_id']; ?>" 
+                                                           name="items[]" value="<?php echo $product['product_id']; ?>"
+                                                           <?php echo in_array($product['product_id'], $category_products) ? 'checked' : ''; ?>>
+                                                    <label for="item<?php echo $product['product_id']; ?>">
+                                                        <?php echo htmlspecialchars($product['product_name']); ?>
+                                                    </label>
+                                                </div>
+                                                <div class="item-sku item-sku-col"><?php echo htmlspecialchars($product['sku']); ?></div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -633,10 +710,18 @@ if (isset($_POST['logout'])) {
 
                     <div class="btn-container">
                         <button type="submit" class="btn-save" id="saveCategory">
-                            <i class="fas fa-save"></i> Save New Category
+                            <i class="fas fa-save"></i> Update Category
                         </button>
                     </div>
                 </form>
+                <?php else: ?>
+                    <div class="form-group">
+                        <p>Please select a category to edit from the categories list.</p>
+                        <a href="viewCategories.php" class="btn-save" style="display: inline-block; text-decoration: none;">
+                            <i class="fas fa-list"></i> View Categories
+                        </a>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -650,74 +735,42 @@ if (isset($_POST['logout'])) {
         };
         
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        
-        // Form submission for logout
-        document.getElementById('userDropdown').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const form = this;
-            const logoutBtn = form.querySelector('button[name="logout"]');
-            const logoutText = logoutBtn.textContent.trim();
-            const logoutIcon = logoutBtn.querySelector('i').className;
-
-            // Show success toast
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.innerHTML = `
-                <i class="fas fa-sign-out-alt"></i>
-                <span>${logoutText} successfully!</span>
-            `;
-            document.body.appendChild(toast);
-            
-            // Remove toast after animation
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-
-            // Redirect to login page after successful logout
-            window.location.href = '../authenticate/login.php';
-        });
 
         // Search functionality
         const searchInput = document.getElementById('itemSearch');
-        searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            const items = document.querySelectorAll('.item-row');
-            
-            items.forEach(item => {
-                const itemName = item.querySelector('.item-name label').textContent.toLowerCase();
-                const itemSku = item.querySelector('.item-sku').textContent.toLowerCase();
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const items = document.querySelectorAll('.item-row');
                 
-                if (itemName.includes(searchTerm) || itemSku.includes(searchTerm)) {
-                    item.style.display = 'contents';
-                } else {
-                    item.style.display = 'none';
-                }
+                items.forEach(item => {
+                    const itemName = item.querySelector('.item-name label').textContent.toLowerCase();
+                    const itemSku = item.querySelector('.item-sku').textContent.toLowerCase();
+                    
+                    if (itemName.includes(searchTerm) || itemSku.includes(searchTerm)) {
+                        item.style.display = 'contents';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
             });
-        });
+        }
 
-        // Form submission validation
-        document.getElementById('categoryForm').onsubmit = function (e) {
-            const categoryName = document.getElementById('categoryName').value.trim();
-            
-            if (!categoryName) {
-                e.preventDefault();
-                const toast = document.createElement('div');
-                toast.className = 'toast error';
-                toast.innerHTML = `
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>Please enter a category name</span>
-                `;
-                document.body.appendChild(toast);
+        // Form validation
+        const categoryForm = document.getElementById('categoryForm');
+        if (categoryForm) {
+            categoryForm.addEventListener('submit', function(e) {
+                const categoryName = document.getElementById('categoryName').value.trim();
                 
-                setTimeout(() => {
-                    toast.remove();
-                }, 3000);
+                if (!categoryName) {
+                    e.preventDefault();
+                    alert('Please enter a category name');
+                    return false;
+                }
                 
-                return false;
-            }
-            
-            return true;
-        };
+                return true;
+            });
+        }
     </script>
 </body>
 </html>

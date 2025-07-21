@@ -1,18 +1,52 @@
 <?php
 require_once '../config/db.php';
 require_once '../config/session_check.php';
-requireRoles(['owner', 'admin']);
+require_once '../config/deleteUser.php';
 
-// DEBUG: Show all users regardless of role/status
-$stmt = $pdo->query("SELECT * FROM users ORDER BY user_id ASC");
-$users = $stmt->fetchAll();
-$roleNames = [1 => 'Owner', 2 => 'Admin', 3 => 'Employee'];
-$statusNames = [1 => 'Active', 2 => 'Inactive'];
-// After fixing your data, you can restore the original JOIN query to show roles and statuses.
+// Get username from session
+$username = $_SESSION['username'];
+
+// Handle delete action
+if (isset($_GET['delete_id'])) {
+    $delete_id = intval($_GET['delete_id']);
+    $result = deleteUser($pdo, $delete_id, $_SESSION['user_id']);
+    
+    if ($result['success']) {
+        $_SESSION['success_message'] = $result['message'];
+    } else {
+        $_SESSION['error_message'] = $result['message'];
+    }
+    
+    header("Location: user_management.php");
+    exit();
+}
+
+// Fetch all users with their role names
+$users_query = "SELECT u.user_id, u.username, u.email, u.password_hash, r.role_name, 
+                u.status_id, u.last_login, u.created_at 
+                FROM users u
+                JOIN roles r ON u.role_id = r.role_id
+                ORDER BY u.created_at DESC";
+$users_result = $pdo->query($users_query);
+$users = $users_result->fetchAll(PDO::FETCH_ASSOC);
+
+// Count users by status
+$count_query = "SELECT 
+                COUNT(*) as total_users,
+                SUM(CASE WHEN status_id = 1 THEN 1 ELSE 0 END) as active_users
+                FROM users";
+$count_result = $pdo->query($count_query);
+$counts = $count_result->fetch(PDO::FETCH_ASSOC);
+
+// Display success/error messages
+$success_message = $_SESSION['success_message'] ?? '';
+$error_message = $_SESSION['error_message'] ?? '';
+unset($_SESSION['success_message']);
+unset($_SESSION['error_message']);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,7 +54,7 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="icon" href="../images/J2E logo favicon.png" type="image/x-icon">
+    <link rel="icon" href="/images/J2E logo favicon.png" type="image/x-icon">
     <style>
         :root {
             --primary-color: #db2c24;
@@ -58,7 +92,19 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
             font-family: 'Montserrat', sans-serif;
             box-sizing: border-box;
         }
-
+        .alert-message {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
         .top-nav {
             display: flex;
             justify-content: space-between;
@@ -318,11 +364,6 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
             max-width: 30%;
         }
 
-        .search-bar {
-            margin-bottom: 2rem;
-            max-width: 30%;
-        }
-
         .search-input {
             display: flex;
             align-items: center;
@@ -400,6 +441,28 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
             color: white;
         }
 
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            display: inline-block;
+        }
+
+        .role-owner {
+            background-color: #9C27B0;
+            color: white;
+        }
+
+        .role-admin {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .role-employee {
+            background-color: #FF9800;
+            color: white;
+        }
+
         .operations {
             display: flex;
             gap: 0.5rem;
@@ -425,269 +488,85 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
         .icon-button:hover {
             color: var(--primary-color);
         }
-
-        /*menu things*/
-        /* Settings and Help Modal Styles */
-	.menu-btns {
-    background-color: var(--primary-color);
-    min-height: 40px;
-    border: none;
-    padding: 12px;
-    border-radius: 5px;
-    cursor: pointer;
-    text-align: center;
-    transition: background-color 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: white;
-    font-weight: bold;
-    white-space: nowrap;
-}
-
-.menu-btns:hover {
-    background-color: var(--secondary-color);
-}
-
-.menu-btns i {
-    font-size: 14px;
-}
-
-        .settings-section,
-        .help-section {
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--light-gray);
-        }
-
-        .setting-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 10px 0;
-            padding: 8px 0;
-        }
-
-        .setting-btn {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-
-        .setting-btn:hover {
-            background-color: var(--secondary-color);
-        }
-
-        .setting-select,
-        .setting-input {
-            padding: 5px;
-            border: 1px solid var(--light-gray);
-            border-radius: 3px;
-            width: 150px;
-        }
-
-        .settings-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .save-btn {
-            background-color: #28a745;
-        }
-
-        .cancel-btn {
-            background-color: var(--medium-gray);
-        }
-
-        .help-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .help-list li {
-            margin: 8px 0;
-        }
-
-        .help-list a {
-            color: var(--primary-color);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .help-list a:hover {
-            text-decoration: underline;
-        }
-
-        .contact-info {
-            margin-left: 10px;
-        }
-
-        .contact-info p {
-            margin: 8px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .issue-form .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-input,
-        .form-textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid var(--light-gray);
-            border-radius: 4px;
-        }
-
-        .form-textarea {
-            resize: vertical;
-        }
-
-        /*FOOTER CSS starts here*/
-        .footer-fullwidth {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            background-image: url('../images/footerBackground.png');
-            background-position: 60%;
-            background-size: cover;
-            height: 400px;
-            padding: 40px 0;
-            margin-top: 0px;
-            margin-bottom: -50px;
-        }
-
-        .footer-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        .footer-content {
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .footer-content h4 {
-            color: var(--primary-color);
-            font-size: 1.5rem;
-        }
-
-        .footer-left {
-            margin-top: 15px;
-            margin-right: 100px;
-            justify-content: flex-end;
-        }
-
-        .footer-left img {
-            height: 150px;
-        }
-
-        .footer-right {
-            display: flex;
-            gap: 60px;
-            justify-content: flex-end;
-        }
-
-        .footer-right ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            line-height: 1.5rem;
-        }
-
-        .footer-right a {
-            text-decoration: none;
-            transition: color 0.2s;
-            color: var(--dark-gray);
-        }
-
-        .footer-right a:hover {
-            color: var(--primary-color);
-            font-weight: bold;
-            text-decoration: none;
-        }
-
-        .footer-info {
-            max-width: 800px;
-            margin: 30px auto 0;
-            padding: 0 20px;
-            font-size: 0.8rem;
-            text-align: center;
-            color: var(--dark-gray);
-        }
-
-
-        .footer-legal {
-            text-align: center;
-            margin-top: 20px;
-            padding: 10px 0;
-            font-size: 0.8rem;
-            color: var(--dark-gray);
-        }
-
-        .footer-legal a {
-            color: var(--dark-gray);
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .footer-legal a:hover {
-            color: var(--primary-color);
-            text-decoration: underline;
-        }
-
-
-        .modal {
+    /* Modal styles */
+        #deleteModal {
             display: none;
             position: fixed;
-            z-index: 1000;
-            left: 0;
             top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0,0,0,0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
         }
-
+        
         .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 20px;
-            border-radius: 5px;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            position: relative;
-            top: 40%;
-            transform: translateY(-50%);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-
-        .close-modal {
-            position: absolute;
-            right: 15px;
-            top: 5px;
-            font-size: 24px;
+        
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        .modal-cancel {
+            padding: 0.5rem 1rem;
+            background: #e0e0e0;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
-            color: var(--dark-gray);
+            transition: background-color 0.2s;
         }
-
-        .close-modal:hover {
-            color: var(--primary-color);
+        
+        .modal-cancel:hover {
+            background: #d0d0d0;
+        }
+        
+        .modal-confirm {
+            padding: 0.5rem 1rem;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .modal-confirm:hover {
+            background: #d32f2f;
+        }
+        
+        /* Alert messages */
+        .alert-message {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
         }
     </style>
 </head>
@@ -706,9 +585,7 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
                 <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
                 <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
                 <li><a href="../category/category_edit.php"><i class="fas fa-tags"></i> Category</a></li>
-                <?php if ($_SESSION['role_name'] === 'owner' || $_SESSION['role_name'] === 'admin'): ?>
-                    <li><a href="user_management.php" class="active"><i class="fas fa-solid fa-user"></i> User</a></li>
-                <?php endif; ?>
+                <li><a href="../user/user_management.php" class="active"><i class="fas fa-solid fa-user"></i> User</a></li>
                 <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
         </div>
@@ -721,9 +598,9 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="#settings"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="#help"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="#"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#"><i class="fas fa-question-circle"></i> Help</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -734,28 +611,46 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
         <!-- Page Header -->
         <div class="header">
             <h1>User Management</h1>
+            <div class="header-actions">
+                <a href="../user/user_add.php" class="btn"><i class="material-icons">add</i> Add New User</a>
+            </div>
         </div>
+
+        <!-- Display success/error messages -->
+        <?php if ($success_message): ?>
+            <div class="alert-message alert-success">
+                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($error_message): ?>
+            <div class="alert-message alert-error">
+                <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error_message); ?>
+            </div>
+        <?php endif; ?>
 
         <!-- Action Bar -->
         <div class="action-bar">
             <div class="action-controls">
                 <div class="btn-group">
-                    <button type="button" class="btn-role" data-role="Employee">Employee</button>
-                    <button type="button" class="btn-role" data-role="Admin">Admin</button>
+                    <button type="button" class="btn-role active" data-role="All">All</button>
+                    <button type="button" class="btn-role" data-role="Owner">Owners</button>
+                    <button type="button" class="btn-role" data-role="Admin">Admins</button>
+                    <button type="button" class="btn-role" data-role="Employee">Employees</button>
                 </div>
-                <a href="user_add.php"><button class="btn" id="addUserBtn" style="padding: 12px;"><i class="fas fa-plus"></i> Add New User</button></a>
                 <button class="btn-outline"><i class="fas fa-download"></i> Export List</button>
             </div>
             <div class="count-display">
-                <span>Total Employees: <span id="countTotal" class="count-value">0</span></span>
-                <span>Current Active: <span id="countActive" class="count-value">0</span></span>
+                <span>Total Users: <span id="countTotal" class="count-value"><?php echo $counts['total_users']; ?></span></span>
+                <span>Active Users: <span id="countActive" class="count-value"><?php echo $counts['active_users']; ?></span></span>
             </div>
         </div>
 
         <!-- Search Bar -->
         <div class="search-bar">
             <div class="search-input">
-                <input type="text" placeholder="Search username..." id="userSearchInput">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search username or email..." id="userSearchInput">
             </div>
         </div>
 
@@ -764,270 +659,81 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
             <table>
                 <thead>
                     <tr>
-                        <th>SELECT</th>
+                        <th><input type="checkbox" id="selectAll"></th>
                         <th>PHOTO</th>
                         <th>USERNAME</th>
                         <th>EMAIL</th>
-                        <th>MOBILE</th>
                         <th>ROLE</th>
                         <th>STATUS</th>
+                        <th>LAST LOGIN</th>
                         <th>OPERATION</th>
                     </tr>
                 </thead>
                 <tbody id="employeeTable">
-<?php if (empty($users)): ?>
-    <tr><td colspan="8">No users found.</td></tr>
-<?php else: ?>
-    <?php foreach ($users as $user): ?>
-        <tr data-role="<?= $roleNames[$user['role_id']] ?? 'Unknown' ?>">
-            <td><input type="checkbox" value="<?= htmlspecialchars($user['user_id'] ?? '') ?>"></td>
-            <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="User" /></td>
-            <td><?= htmlspecialchars($user['username'] ?? '') ?></td>
-            <td><?= htmlspecialchars($user['email'] ?? '') ?></td>
-            <td><?= htmlspecialchars($user['mobile'] ?? '') ?></td>
-            <td><?= htmlspecialchars($roleNames[$user['role_id']] ?? '') ?></td>
-            <td>
-                <span class="status-badge status-<?= strtolower($statusNames[$user['status_id']] ?? '') ?>">
-                    <?= htmlspecialchars($statusNames[$user['status_id']] ?? '') ?>
-                </span>
-            </td>
-            <td class="operations">
-                <a href="user_edit.php?user_id=<?= htmlspecialchars($user['user_id'] ?? '') ?>" class="icon-button"><i class="material-icons">edit</i></a>
-                <button class="icon-button" data-user-id="<?= htmlspecialchars($user['user_id'] ?? '') ?>"><i class="material-icons">delete</i></button>
-            </td>
-        </tr>
-    <?php endforeach; ?>
-<?php endif; ?>
-</tbody>
+                    <?php foreach ($users as $user): 
+                        $status_class = $user['status_id'] == 1 ? 'status-active' : 'status-inactive';
+                        $status_text = $user['status_id'] == 1 ? 'Active' : 'Inactive';
+                        $role_class = 'role-' . strtolower($user['role_name']);
+                    ?>
+                    <tr data-role="<?php echo htmlspecialchars($user['role_name']); ?>" data-status="<?php echo $status_text; ?>">
+                        <td><input type="checkbox" class="user-checkbox" data-user-id="<?php echo $user['user_id']; ?>"></td>
+                        <td><img src="../images/sample user profile pic.jpg" class="avatar" alt="User" /></td>
+                        <td><?php echo htmlspecialchars($user['username']); ?></td>
+                        <td><?php echo htmlspecialchars($user['email']); ?></td>
+                        <td><span class="role-badge <?php echo $role_class; ?>"><?php echo htmlspecialchars($user['role_name']); ?></span></td>
+                        <td><span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span></td>
+                        <td><?php echo $user['last_login'] ? date('M d, Y H:i', strtotime($user['last_login'])) : 'Never'; ?></td>
+                        <td class="operations">
+                            <a href="user_edit.php?id=<?php echo $user['user_id']; ?>" class="icon-button" title="Edit"><i class="material-icons">edit</i></a>
+                            <a href="#" onclick="return confirmDelete(<?php echo $user['user_id']; ?>)" class="icon-button" title="Delete"><i class="material-icons">delete</i></a>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
             </table>
         </div>
-
-
-  <!--Menu things-->
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal">
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal">
         <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3><i class="fas fa-cog"></i> System Settings</h3>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-user-cog"></i> Account Settings</h4>
-                <div class="setting-item">
-                    <label>Change Password</label>
-                    <button class="setting-btn">Update</button>
-                </div>
-                <div class="setting-item">
-                    <label>Notification Preferences</label>
-                    <button class="setting-btn">Configure</button>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-sliders-h"></i> System Preferences</h4>
-                <div class="setting-item">
-                    <label>Theme Color</label>
-                    <select class="setting-select">
-                        <option>Red (Default)</option>
-                        <option>Blue</option>
-                        <option>Green</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <label>Items Per Page</label>
-                    <input type="number" class="setting-input" value="25" min="10" max="100">
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-database"></i> Data Management</h4>
-                <div class="setting-item">
-                    <label>Export Inventory Data</label>
-                    <button class="setting-btn">CSV Export</button>
-                </div>
-                <div class="setting-item">
-                    <label>Backup System</label>
-                    <button class="setting-btn">Create Backup</button>
-                </div>
-            </div>
-
-            <div class="settings-actions">
-                <button class="menu-btns save-btn"><i class="fas fa-save"></i> Save Changes</button>
-                <button class="menu-btns cancel-btn"><i class="fas fa-times"></i> Cancel</button>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete this user? This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+                <a id="confirmDeleteBtn" href="#" class="modal-confirm">Delete</a>
             </div>
         </div>
     </div>
 
-    <!-- Help Modal -->
-    <div id="help-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3><i class="fas fa-question-circle"></i> Help Center</h3>
+    <script>
+        // Delete confirmation function
+        function confirmDelete(userId) {
+            const modal = document.getElementById('deleteModal');
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            
+            // Set the delete link
+            confirmBtn.href = `user_management.php?delete_id=${userId}`;
+            
+            // Show the modal
+            modal.style.display = 'flex';
+            
+            // Prevent default anchor behavior
+            return false;
+        }
+        
+        function closeModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+        }
 
-            <div class="help-section">
-                <h4><i class="fas fa-book"></i> Documentation</h4>
-                <ul class="help-list">
-                    <li><a href="#"><i class="fas fa-file-alt"></i> User Manual</a></li>
-                    <li><a href="#"><i class="fas fa-video"></i> Video Tutorials</a></li>
-                    <li><a href="#"><i class="fas fa-chart-bar"></i> Inventory Management Guide</a></li>
-                </ul>
-            </div>
+        // Close modal when clicking outside
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
 
-            <div class="help-section">
-                <h4><i class="fas fa-headset"></i> Support</h4>
-                <div class="contact-info">
-                    <p><i class="fas fa-envelope"></i> Email: support@j2ehealthcare.com</p>
-                    <p><i class="fas fa-phone"></i> Phone: (02) 8123-4567</p>
-                    <p><i class="fas fa-clock"></i> Hours: Mon-Fri, 9AM-5PM</p>
-                </div>
-            </div>
-
-            <div class="help-section">
-                <h4><i class="fas fa-bug"></i> Report an Issue</h4>
-                <form class="issue-form">
-                    <div class="form-group">
-                        <label>Subject</label>
-                        <input type="text" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea class="form-textarea" rows="4"></textarea>
-                    </div>
-                    <button type="submit" class="menu-btns"><i class="fas fa-paper-plane"></i> Submit</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!--footer thingies-->
-    <div class="footer-fullwidth">
-        <div class="footer-container">
-            <div class="footer-content">
-                <div class="footer-left">
-                    <img src="../images/J2E-logo3.png">
-                </div>
-                <div class="footer-right">
-                    <div>
-                        <h4>Products</h4>
-                        <ul>
-                            <li>Supply</li>
-                            <li>Equipment</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4>Navigation</h4>
-                        <ul>
-                            <li><a href="/home/dashboard.html">Home</a></li>
-                            <li><a href="/inventory/inventory.html">Inventory</a></li>
-                            <li><a href="/category/category.html">Category</a></li>
-                            <li><a href="/user/user-management.html">User</a></li>
-                            <li><a href="/invoice/invoice.html">Invoice</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            <div class="footer-info">
-                <p>J2E Healthcare Trading was established on September 30, 2020, and is registered with the
-                    Department of Trade and Industry (DTI) under BNN 2155601. It specializes in physical and
-                    occupational therapy supplies and equipment with a national scope.</p>
-            </div>
-
-            <div class="footer-legal">
-                <p>
-                    © 2024 J2E Healthcare Trading. All Rights Reserved. |
-                    <a href="#" class="legal-link" id="privacy-policy-link">Privacy Policy</a> |
-                    <a href="#" class="legal-link" id="terms-service-link">Terms of Service</a>
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div id="privacy-policy-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3>Privacy Policy</h3>
-            <p><em>Last Updated: July 17, 2025</em></p>
-
-            <p>This Privacy Policy governs how J2E Healthcare Trading ("we," "us") collects, uses, and protects your
-                data in our inventory management system.</p>
-
-            <h4>2. Data We Collect</h4>
-            <ul>
-                <li><strong>Account Information:</strong> Names, emails, usernames, passwords.</li>
-                <li><strong>Inventory Data:</strong> Product details, supplier info, transaction records.</li>
-                <li><strong>Automated Data:</strong> IP addresses, cookies (if used for analytics).</li>
-            </ul>
-
-            <h4>3. How We Use Data</h4>
-            <ul>
-                <li>To manage user access and system functionality.</li>
-                <li>To track inventory, sales, and business operations.</li>
-                <li>To comply with legal obligations (e.g., tax records).</li>
-            </ul>
-
-            <h4>4. Data Protection</h4>
-            <p>We implement security measures like encryption (SSL), access controls, and regular audits to protect your
-                data.</p>
-
-            <h4>5. Third-Party Sharing</h4>
-            <p>Data is only shared with essential service providers (e.g., hosting). We never sell your information.</p>
-
-            <h4>6. Your Rights</h4>
-            <p>You may request access, correction, or deletion of your personal data by contacting us at [Your Email].
-            </p>
-
-            <h4>7. Policy Updates</h4>
-            <p>Changes will be posted here. Continued use of the system constitutes acceptance.</p>
-
-            <p><strong>Contact Us:</strong> For questions, email j2e_admin@gmail.com or call 09452222222.</p>
-        </div>
-    </div>
-
-    <div id="terms-service-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3>Terms of Service</h3>
-            <p><em>Last Updated: July 17, 2025</em></p>
-
-            <h4>1. Acceptance</h4>
-            <p>By accessing our inventory management system, you agree to these Terms.</p>
-
-            <h4>2. User Responsibilities</h4>
-            <ul>
-                <li>Keep login credentials secure.</li>
-                <li>Enter accurate inventory/sales data.</li>
-                <li>Do not share accounts or misuse the system.</li>
-            </ul>
-
-            <h4>3. Prohibited Actions</h4>
-            <ul>
-                <li>Reverse-engineering or hacking the software.</li>
-                <li>Uploading false/misleading data.</li>
-                <li>Using the system for illegal activities.</li>
-            </ul>
-
-            <h4>4. Intellectual Property</h4>
-            <p>The software, logos, and content are owned by J2E Healthcare Trading. Unauthorized use is prohibited.</p>
-
-            <h4>5. Limitation of Liability</h4>
-            <p>We are not liable for:</p>
-            <ul>
-                <li>Data loss due to user error.</li>
-                <li>System downtime beyond our control.</li>
-            </ul>
-
-            <h4>6. Termination</h4>
-            <p>We may suspend accounts for violations of these Terms.</p>
-
-            <h4>7. Governing Law</h4>
-            <p>These Terms are governed by the laws of the Philippines.</p>
-
-            <p><strong>Contact Us:</strong> For disputes or questions, email j2e_admin@gmail.com.</p>
-        </div>
-    </div>
-        <script>
-    // Main initialization when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize counts and table filtering
+        // Initialize counts
         function updateCounts() {
             const visibleRows = Array.from(document.querySelectorAll('#employeeTable tr')).filter(row => row.style.display !== 'none');
             const activeRows = visibleRows.filter(row => row.getAttribute('data-status') === 'Active');
@@ -1039,54 +745,58 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
         document.querySelectorAll('.btn-role').forEach(button => {
             button.addEventListener('click', function() {
                 const role = this.getAttribute('data-role');
-
+                
                 // Update active button
                 document.querySelectorAll('.btn-role').forEach(btn => {
                     btn.classList.remove('active');
                 });
                 this.classList.add('active');
-
+                
                 // Filter table rows
                 document.querySelectorAll('#employeeTable tr').forEach(row => {
-                    const rowRole = row.getAttribute('data-role');
-                    if (role === 'Employee') {
-                        row.style.display = (rowRole === 'Employee') ? '' : 'none';
-                    } else if (role === 'Admin') {
-                        row.style.display = (rowRole === 'Admin' || rowRole === 'Owner') ? '' : 'none';
+                    if (role === 'All' || row.getAttribute('data-role') === role) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
                     }
                 });
-
+                
                 updateCounts();
             });
         });
 
-        // Set 'Employee' as the default filter on page load
-        const empBtn = document.querySelector('[data-role="Employee"]');
-        if (empBtn) {
-            empBtn.classList.add('active');
-            empBtn.click();
-        }
-
-        // User dropdown functionality
-        function closeAllDropdowns(exceptElement) {
-            if (!exceptElement || !exceptElement.closest('#userDropdown')) {
-                document.getElementById('userDropdown').classList.remove('show');
-            }
-        }
-
-        document.getElementById('menuDropdown').addEventListener('click', function(e) {
-            e.stopPropagation();
-            const userDropdown = document.getElementById('userDropdown');
-            const wasOpen = userDropdown.classList.contains('show');
-
-            closeAllDropdowns();
-            if (!wasOpen) {
-                userDropdown.classList.add('show');
-            }
+        // Search functionality
+        document.getElementById('userSearchInput').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            document.querySelectorAll('#employeeTable tr').forEach(row => {
+                const username = row.cells[2].textContent.toLowerCase();
+                const email = row.cells[3].textContent.toLowerCase();
+                if (username.includes(searchTerm) || email.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            updateCounts();
         });
 
-        document.addEventListener('click', function(e) {
-            closeAllDropdowns(e.target);
+        // Select all checkbox
+        document.getElementById('selectAll').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+
+        // User dropdown functionality
+        document.getElementById('menuDropdown').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('userDropdown').classList.toggle('show');
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function() {
+            document.getElementById('userDropdown').classList.remove('show');
         });
 
         // Logout functionality
@@ -1107,56 +817,10 @@ $statusNames = [1 => 'Active', 2 => 'Inactive'];
                 });
         });
 
-        // Modal functionality
-        const modals = {
-            privacy: document.getElementById('privacy-policy-modal'),
-            terms: document.getElementById('terms-service-modal'),
-            settings: document.getElementById('settings-modal'),
-            help: document.getElementById('help-modal')
-        };
-
-        const modalTriggers = {
-            privacy: document.getElementById('privacy-policy-link'),
-            terms: document.getElementById('terms-service-link'),
-            settings: document.querySelector('.user-dropdown a[href="#settings"]'),
-            help: document.querySelector('.user-dropdown a[href="#help"]')
-        };
-
-        const closeButtons = document.querySelectorAll('.close-modal');
-
-        function closeAllModals() {
-            Object.values(modals).forEach(modal => {
-                if (modal) modal.style.display = 'none';
-            });
-        }
-
-        Object.entries(modalTriggers).forEach(([key, trigger]) => {
-            if (trigger) {
-                trigger.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    closeAllDropdowns();
-                    closeAllModals();
-                    if (modals[key]) modals[key].style.display = 'block';
-                });
-            }
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCounts();
         });
-
-        closeButtons.forEach(button => {
-            button.addEventListener('click', closeAllModals);
-        });
-
-        window.addEventListener('click', function(e) {
-            Object.values(modals).forEach(modal => {
-                if (modal && e.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
-        });
-
-        // Initial counts update
-        updateCounts();
-    });
-</script>
+    </script>
 </body>
-
 </html>

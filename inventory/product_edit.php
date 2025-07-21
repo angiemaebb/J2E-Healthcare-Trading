@@ -1,10 +1,153 @@
 <?php
 require_once '../config/db.php';
 require_once '../config/session_check.php';
-requireRoles(['owner', 'admin', 'employee']);
 
 // Get username from session
 $username = $_SESSION['username'];
+
+// Check if product ID is provided
+if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+    header("Location: inventory.php");
+    exit();
+}
+
+$product_id = $_GET['id'];
+
+// Fetch product data from database
+$product = $pdo->prepare("
+    SELECT p.*, pi.quantity, pi.unit_price 
+    FROM products p 
+    LEFT JOIN product_inventory pi ON p.product_id = pi.product_id 
+    WHERE p.product_id = ?
+");
+$product->execute([$product_id]);
+$product = $product->fetch(PDO::FETCH_ASSOC);
+
+if (!$product) {
+    header("Location: inventory.php");
+    exit();
+}
+
+// Fetch categories and units for dropdowns
+$categories = $pdo->query("SELECT category_id, category_name FROM categories ORDER BY category_name")->fetchAll();
+$units = $pdo->query("SELECT unit_id, unit_name FROM units ORDER BY unit_name")->fetchAll();
+
+// Handle form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    try {
+        // Validate required fields
+        $required_fields = ['productName', 'sku', 'quantity', 'unitPrice', 'category_id'];
+        foreach ($required_fields as $field) {
+            if (empty($_POST[$field])) {
+                throw new Exception("All required fields must be filled out");
+            }
+        }
+
+        // Validate numeric fields
+        if (!is_numeric($_POST['quantity']) || $_POST['quantity'] < 0) {
+            throw new Exception("Invalid quantity value");
+        }
+        if (!is_numeric($_POST['unitPrice']) || $_POST['unitPrice'] < 0) {
+            throw new Exception("Invalid unit price value");
+        }
+
+        // Handle image upload if present
+        $image_path = $product['image_path']; // Keep existing image by default
+        
+        if (isset($_FILES['productImage']) && $_FILES['productImage']['error'] === UPLOAD_ERR_OK) {
+            $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+            $file_type = $_FILES['productImage']['type'];
+            
+            if (!in_array($file_type, $allowed_types)) {
+                throw new Exception("Invalid file type. Only JPG, PNG, and GIF are allowed.");
+            }
+            
+            $max_size = 5 * 1024 * 1024; // 5MB
+            if ($_FILES['productImage']['size'] > $max_size) {
+                throw new Exception("File size too large. Maximum size is 5MB.");
+            }
+            
+            $upload_dir = '../uploads/products/';
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            
+            // Delete old image if exists
+            if ($image_path && file_exists("../".$image_path)) {
+                unlink("../".$image_path);
+            }
+            
+            $file_extension = pathinfo($_FILES['productImage']['name'], PATHINFO_EXTENSION);
+            $file_name = uniqid() . '.' . $file_extension;
+            $target_path = $upload_dir . $file_name;
+            
+            if (!move_uploaded_file($_FILES['productImage']['tmp_name'], $target_path)) {
+                throw new Exception("Failed to upload image");
+            }
+            
+            $image_path = 'uploads/products/' . $file_name;
+        }
+
+        // Begin transaction
+        $pdo->beginTransaction();
+
+        // Update products table
+        $stmt = $pdo->prepare("
+            UPDATE products SET 
+                product_name = ?, 
+                sku = ?, 
+                description = ?, 
+                category_id = ?, 
+                unit_id = ?, 
+                image_path = ?, 
+                updated_at = NOW() 
+            WHERE product_id = ?
+        ");
+        
+        $stmt->execute([
+            $_POST['productName'],
+            $_POST['sku'],
+            $_POST['description'] ?? null,
+            $_POST['category_id'],
+            $_POST['unit_id'],
+            $image_path,
+            $product_id
+        ]);
+
+        // Update product_inventory table
+        $stmt = $pdo->prepare("
+            UPDATE product_inventory SET 
+                quantity = ?, 
+                unit_price = ?, 
+                updated_at = NOW() 
+            WHERE product_id = ?
+        ");
+        
+        $stmt->execute([
+            $_POST['quantity'],
+            $_POST['unitPrice'],
+            $product_id
+        ]);
+
+        // Commit transaction
+        $pdo->commit();
+
+        // Show success message and redirect
+        echo '<script>
+            alert("Product updated successfully!");
+            window.location.href = "inventory.php";
+        </script>';
+
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        // Show error message
+        echo '<script>alert("Error: ' . addslashes($e->getMessage()) . '");</script>';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -379,270 +522,6 @@ $username = $_SESSION['username'];
             font-size: 28px;
         }
         }
-
-        /*menu things*/
-        /* Settings and Help Modal Styles */
-	.menu-btns {
-    background-color: var(--main-color);
-    min-height: 40px;
-    border: none;
-    padding: 12px;
-    border-radius: 5px;
-    cursor: pointer;
-    text-align: center;
-    transition: background-color 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: white;
-    font-weight: bold;
-    white-space: nowrap;
-}
-
-.menu-btns:hover {
-    background-color: var(--secondary-color);
-}
-
-.menu-btns i {
-    font-size: 14px;
-}
-
-        .settings-section,
-        .help-section {
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--light-gray);
-        }
-
-        .setting-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 10px 0;
-            padding: 8px 0;
-        }
-
-        .setting-btn {
-            background-color: var(--main-color);
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-
-        .setting-btn:hover {
-            background-color: var(--secondary-color);
-        }
-
-        .setting-select,
-        .setting-input {
-            padding: 5px;
-            border: 1px solid var(--light-gray);
-            border-radius: 3px;
-            width: 150px;
-        }
-
-        .settings-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .save-btn {
-            background-color: #28a745;
-        }
-
-        .cancel-btn {
-            background-color: var(--medium-gray);
-        }
-
-        .help-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .help-list li {
-            margin: 8px 0;
-        }
-
-        .help-list a {
-            color: var(--main-color);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .help-list a:hover {
-            text-decoration: underline;
-        }
-
-        .contact-info {
-            margin-left: 10px;
-        }
-
-        .contact-info p {
-            margin: 8px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .issue-form .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-input,
-        .form-textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid var(--light-gray);
-            border-radius: 4px;
-        }
-
-        .form-textarea {
-            resize: vertical;
-        }
-
-        /*FOOTER CSS starts here*/
-        .footer-fullwidth {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            background-image: url('../images/footerBackground.png');
-            background-position: 60%;
-            background-size: cover;
-            height: 400px;
-            padding: 40px 0;
-            margin-top: 0px;
-            margin-bottom: -50px;
-        }
-
-        .footer-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        .footer-content {
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .footer-content h4 {
-            color: var(--main-color);
-            font-size: 1.5rem;
-        }
-
-        .footer-left {
-            margin-top: 15px;
-            margin-right: 100px;
-            justify-content: flex-end;
-        }
-
-        .footer-left img {
-            height: 150px;
-        }
-
-        .footer-right {
-            display: flex;
-            gap: 60px;
-            justify-content: flex-end;
-        }
-
-        .footer-right ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            line-height: 1.5rem;
-        }
-
-        .footer-right a {
-            text-decoration: none;
-            transition: color 0.2s;
-            color: var(--dark-gray);
-        }
-
-        .footer-right a:hover {
-            color: var(--main-color);
-            font-weight: bold;
-            text-decoration: none;
-        }
-
-        .footer-info {
-            max-width: 800px;
-            margin: 30px auto 0;
-            padding: 0 20px;
-            font-size: 0.8rem;
-            text-align: center;
-            color: var(--dark-gray);
-        }
-
-
-        .footer-legal {
-            text-align: center;
-            margin-top: 20px;
-            padding: 10px 0;
-            font-size: 0.8rem;
-            color: var(--dark-gray);
-        }
-
-        .footer-legal a {
-            color: var(--dark-gray);
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .footer-legal a:hover {
-            color: var(--main-color);
-            text-decoration: underline;
-        }
-
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.7);
-        }
-
-        .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 20px;
-            border-radius: 5px;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            position: relative;
-            top: 40%;
-            transform: translateY(-50%);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .close-modal {
-            position: absolute;
-            right: 15px;
-            top: 5px;
-            font-size: 24px;
-            cursor: pointer;
-            color: var(--dark-gray);
-        }
-
-        .close-modal:hover {
-            color: var(--main-color);
-        }
     </style>
     </head>
     <body>
@@ -671,9 +550,9 @@ $username = $_SESSION['username'];
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="#settings"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="#help"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="../menu/settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="../menu/help.html"><i class="fas fa-question-circle"></i> Help</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -681,409 +560,137 @@ $username = $_SESSION['username'];
 
     <div class="content">
         <div class="page-header">
-        <h1 class="page-title">Edit Product</h1>
+            <h1 class="page-title">Edit Product</h1>
         </div>
 
-        <form id="productForm" class="form-container" method="POST" action="update_product.php" enctype="multipart/form-data">
-        <div class="form-section">
-            <div class="form-group">
-            <label for="productName">Product Name <span class="required">*</span></label>
-            <input type="text" id="productName" name="productName" required>
+        <form id="productForm" method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]).'?id='.$product_id; ?>" enctype="multipart/form-data" class="form-container">
+            <div class="form-section">
+                <div class="form-group">
+                    <label for="productName">Product Name <span class="required">*</span></label>
+                    <input type="text" id="productName" name="productName" value="<?php echo htmlspecialchars($product['product_name']); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="sku">SKU <span class="required">*</span></label>
+                    <input type="text" id="sku" name="sku" value="<?php echo htmlspecialchars($product['sku']); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description"><?php echo htmlspecialchars($product['description']); ?></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="quantity">Quantity <span class="required">*</span></label>
+                    <input type="number" id="quantity" name="quantity" min="0" value="<?php echo htmlspecialchars($product['quantity']); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="unitPrice">Unit Price (₱) <span class="required">*</span></label>
+                    <input type="number" id="unitPrice" name="unitPrice" min="0" step="0.01" value="<?php echo htmlspecialchars($product['unit_price']); ?>" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="category">Category <span class="required">*</span></label>
+                    <select id="category" name="category_id" required>
+                        <option value="">Select a category</option>
+                        <?php foreach ($categories as $category): ?>
+                            <option value="<?php echo htmlspecialchars($category['category_id']); ?>" <?php echo ($category['category_id'] == $product['category_id']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($category['category_name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="unit">Unit <span class="required">*</span></label>
+                    <select id="unit" name="unit_id" required>
+                        <option value="">Select a unit</option>
+                        <?php foreach ($units as $unit): ?>
+                            <option value="<?php echo htmlspecialchars($unit['unit_id']); ?>" <?php echo ($unit['unit_id'] == $product['unit_id']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($unit['unit_name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
 
-            <div class="form-group">
-            <label for="sku">SKU <span class="required">*</span></label>
-            <input type="text" id="sku" name="sku" required>
+            <div class="image-upload-section">
+                <div class="image-upload-container" id="imageUpload" tabindex="0" role="button" style="<?php echo ($product['image_path']) ? 'display:none;' : ''; ?>">
+                    <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <div class="upload-text">Upload Product Image</div>
+                    <div class="upload-subtext">PNG, JPG, or GIF up to 5MB</div>
+                    <button type="button" class="upload-button">Choose File</button>
+                    <input type="file" id="fileInput" name="productImage" accept="image/*" style="display: none;">
+                </div>
+                <div class="preview-container" id="previewContainer" style="<?php echo ($product['image_path']) ? 'display:block;' : 'display:none;' ?>">
+                    <img id="imagePreview" src="<?php echo ($product['image_path']) ? '../'.htmlspecialchars($product['image_path']) : ''; ?>" alt="Preview">
+                    <div class="remove-image" id="removeImage">Remove Image</div>
+                </div>
             </div>
 
-            <div class="form-group">
-            <label for="description">Description</label>
-            <textarea id="description" name="description"></textarea>
+            <div class="btn-container">
+                <button type="submit" class="btn-save" id="saveProduct">
+                    <i class="fas fa-save"></i> Update Product
+                </button>
             </div>
-
-            <div class="form-group">
-            <label for="quantity">Quantity <span class="required">*</span></label>
-            <input type="number" id="quantity" name="quantity" min="0" required>
-            </div>
-
-            <div class="form-group">
-            <label for="unitPrice">Unit Price (₱) <span class="required">*</span></label>
-            <input type="number" id="unitPrice" name="unitPrice" min="0" step="0.01" required>
-            </div>
-            
-            <div class="form-group">
-            <label for="category">Category <span class="required">*</span></label>
-            <select id="category" name="category" required>
-                <option value="">Select a category</option>
-                <option value="equipment">Equipment</option>
-                <option value="supply">Supply</option>
-            </select>
-            </div>
-        </div>
-
-        <div class="image-upload-section">
-            <div class="image-upload-container" id="imageUpload" tabindex="0" role="button">
-            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-            <div class="upload-text">Upload Product Image</div>
-            <div class="upload-subtext">PNG, JPG, or GIF up to 5MB</div>
-            <button type="button" class="upload-button">Choose File</button>
-            <input type="file" id="fileInput" name="productImage" accept="image/*" style="display: none;">
-            </div>
-            <div class="preview-container" id="previewContainer" style="display:none;">
-            <img id="imagePreview" src="" alt="Preview">
-            <div class="remove-image" id="removeImage">Remove Image</div>
-            </div>
-        </div>
-
-        <div class="btn-container">
-            <button type="submit" class="btn-save" id="saveProduct">
-            <i class="fas fa-save"></i> Update Product
-            </button>
-        </div>
         </form>
     </div>
 
-    <!--Menu things-->
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3><i class="fas fa-cog"></i> System Settings</h3>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-user-cog"></i> Account Settings</h4>
-                <div class="setting-item">
-                    <label>Change Password</label>
-                    <button class="setting-btn">Update</button>
-                </div>
-                <div class="setting-item">
-                    <label>Notification Preferences</label>
-                    <button class="setting-btn">Configure</button>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-sliders-h"></i> System Preferences</h4>
-                <div class="setting-item">
-                    <label>Theme Color</label>
-                    <select class="setting-select">
-                        <option>Red (Default)</option>
-                        <option>Blue</option>
-                        <option>Green</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <label>Items Per Page</label>
-                    <input type="number" class="setting-input" value="25" min="10" max="100">
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-database"></i> Data Management</h4>
-                <div class="setting-item">
-                    <label>Export Inventory Data</label>
-                    <button class="setting-btn">CSV Export</button>
-                </div>
-                <div class="setting-item">
-                    <label>Backup System</label>
-                    <button class="setting-btn">Create Backup</button>
-                </div>
-            </div>
-
-            <div class="settings-actions">
-                <button class="menu-btns save-btn"><i class="fas fa-save"></i> Save Changes</button>
-                <button class="menu-btns cancel-btn"><i class="fas fa-times"></i> Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Help Modal -->
-    <div id="help-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3><i class="fas fa-question-circle"></i> Help Center</h3>
-
-            <div class="help-section">
-                <h4><i class="fas fa-book"></i> Documentation</h4>
-                <ul class="help-list">
-                    <li><a href="#"><i class="fas fa-file-alt"></i> User Manual</a></li>
-                    <li><a href="#"><i class="fas fa-video"></i> Video Tutorials</a></li>
-                    <li><a href="#"><i class="fas fa-chart-bar"></i> Inventory Management Guide</a></li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h4><i class="fas fa-headset"></i> Support</h4>
-                <div class="contact-info">
-                    <p><i class="fas fa-envelope"></i> Email: support@j2ehealthcare.com</p>
-                    <p><i class="fas fa-phone"></i> Phone: (02) 8123-4567</p>
-                    <p><i class="fas fa-clock"></i> Hours: Mon-Fri, 9AM-5PM</p>
-                </div>
-            </div>
-
-            <div class="help-section">
-                <h4><i class="fas fa-bug"></i> Report an Issue</h4>
-                <form class="issue-form">
-                    <div class="form-group">
-                        <label>Subject</label>
-                        <input type="text" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea class="form-textarea" rows="4"></textarea>
-                    </div>
-                    <button type="submit" class="menu-btns"><i class="fas fa-paper-plane"></i> Submit</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!--footer thingies-->
-    <div class="footer-fullwidth">
-        <div class="footer-container">
-            <div class="footer-content">
-                <div class="footer-left">
-                    <img src="../images/J2E-logo3.png">
-                </div>
-                <div class="footer-right">
-                    <div>
-                        <h4>Products</h4>
-                        <ul>
-                            <li>Supply</li>
-                            <li>Equipment</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4>Navigation</h4>
-                        <ul>
-                            <li><a href="/home/dashboard.html">Home</a></li>
-                            <li><a href="/inventory/inventory.html">Inventory</a></li>
-                            <li><a href="/category/category.html">Category</a></li>
-                            <li><a href="/user/user-management.html">User</a></li>
-                            <li><a href="/invoice/invoice.html">Invoice</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            <div class="footer-info">
-                <p>J2E Healthcare Trading was established on September 30, 2020, and is registered with the
-                    Department of Trade and Industry (DTI) under BNN 2155601. It specializes in physical and
-                    occupational therapy supplies and equipment with a national scope.</p>
-            </div>
-
-            <div class="footer-legal">
-                <p>
-                    © 2024 J2E Healthcare Trading. All Rights Reserved. |
-                    <a href="#" class="legal-link" id="privacy-policy-link">Privacy Policy</a> |
-                    <a href="#" class="legal-link" id="terms-service-link">Terms of Service</a>
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div id="privacy-policy-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3>Privacy Policy</h3>
-            <p><em>Last Updated: July 17, 2025</em></p>
-
-            <p>This Privacy Policy governs how J2E Healthcare Trading ("we," "us") collects, uses, and protects your
-                data in our inventory management system.</p>
-
-            <h4>2. Data We Collect</h4>
-            <ul>
-                <li><strong>Account Information:</strong> Names, emails, usernames, passwords.</li>
-                <li><strong>Inventory Data:</strong> Product details, supplier info, transaction records.</li>
-                <li><strong>Automated Data:</strong> IP addresses, cookies (if used for analytics).</li>
-            </ul>
-
-            <h4>3. How We Use Data</h4>
-            <ul>
-                <li>To manage user access and system functionality.</li>
-                <li>To track inventory, sales, and business operations.</li>
-                <li>To comply with legal obligations (e.g., tax records).</li>
-            </ul>
-
-            <h4>4. Data Protection</h4>
-            <p>We implement security measures like encryption (SSL), access controls, and regular audits to protect your
-                data.</p>
-
-            <h4>5. Third-Party Sharing</h4>
-            <p>Data is only shared with essential service providers (e.g., hosting). We never sell your information.</p>
-
-            <h4>6. Your Rights</h4>
-            <p>You may request access, correction, or deletion of your personal data by contacting us at [Your Email].
-            </p>
-
-            <h4>7. Policy Updates</h4>
-            <p>Changes will be posted here. Continued use of the system constitutes acceptance.</p>
-
-            <p><strong>Contact Us:</strong> For questions, email j2e_admin@gmail.com or call 09452222222.</p>
-        </div>
-    </div>
-
-    <div id="terms-service-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3>Terms of Service</h3>
-            <p><em>Last Updated: July 17, 2025</em></p>
-
-            <h4>1. Acceptance</h4>
-            <p>By accessing our inventory management system, you agree to these Terms.</p>
-
-            <h4>2. User Responsibilities</h4>
-            <ul>
-                <li>Keep login credentials secure.</li>
-                <li>Enter accurate inventory/sales data.</li>
-                <li>Do not share accounts or misuse the system.</li>
-            </ul>
-
-            <h4>3. Prohibited Actions</h4>
-            <ul>
-                <li>Reverse-engineering or hacking the software.</li>
-                <li>Uploading false/misleading data.</li>
-                <li>Using the system for illegal activities.</li>
-            </ul>
-
-            <h4>4. Intellectual Property</h4>
-            <p>The software, logos, and content are owned by J2E Healthcare Trading. Unauthorized use is prohibited.</p>
-
-            <h4>5. Limitation of Liability</h4>
-            <p>We are not liable for:</p>
-            <ul>
-                <li>Data loss due to user error.</li>
-                <li>System downtime beyond our control.</li>
-            </ul>
-
-            <h4>6. Termination</h4>
-            <p>We may suspend accounts for violations of these Terms.</p>
-
-            <h4>7. Governing Law</h4>
-            <p>These Terms are governed by the laws of the Philippines.</p>
-
-            <p><strong>Contact Us:</strong> For disputes or questions, email j2e_admin@gmail.com.</p>
-        </div>
-    </div>    
 
     <script>
-    // Enhanced Dropdown functionality
-    function closeAllDropdowns(exceptElement) {
-        if (!exceptElement) {
-            document.getElementById('userDropdown').classList.remove('show');
-        }
-    }
-
-    document.getElementById('menuDropdown').addEventListener('click', function(e) {
-        e.stopPropagation();
+        // Dropdown functionality
         const userDropdown = document.getElementById('userDropdown');
-        const wasOpen = userDropdown.classList.contains('show');
-
-        closeAllDropdowns();
-        if (!wasOpen) {
-            userDropdown.classList.add('show');
-        }
-    });
-
-    document.addEventListener('click', function(e) {
-        closeAllDropdowns(e.target);
-    });
-
-    // Enhanced logout functionality (keeping your fetch version)
-    document.getElementById('logoutBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        fetch('../authenticate/logout.php')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = '../authenticate/login.php';
-                } else {
-                    alert('Logout failed. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred during logout. Please try again.');
-            });
-    });
-
-    // Modal functionality (from reference)
-    document.addEventListener('DOMContentLoaded', function() {
-        const modals = {
-            privacy: document.getElementById('privacy-policy-modal'),
-            terms: document.getElementById('terms-service-modal'),
-            settings: document.getElementById('settings-modal'),
-            help: document.getElementById('help-modal')
+        document.getElementById('menuDropdown').onclick = (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
         };
+        
+        document.addEventListener('click', () => userDropdown.classList.remove('show'));
 
-        const modalTriggers = {
-            privacy: document.getElementById('privacy-policy-link'),
-            terms: document.getElementById('terms-service-link'),
-            settings: document.querySelector('.user-dropdown a[href="#settings"]'),
-            help: document.querySelector('.user-dropdown a[href="#help"]')
-        };
-
-        const closeButtons = document.querySelectorAll('.close-modal');
-
-        function closeAllModals() {
-            Object.values(modals).forEach(modal => {
-                if (modal) modal.style.display = 'none';
-            });
-        }
-
-        Object.entries(modalTriggers).forEach(([key, trigger]) => {
-            if (trigger && modals[key]) {
-                trigger.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    closeAllDropdowns();
-                    closeAllModals();
-                    modals[key].style.display = 'block';
+        // Logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            fetch('../authenticate/logout.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '../authenticate/login.php';
+                    } else {
+                        alert('Logout failed. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred during logout. Please try again.');
                 });
-            }
         });
 
-        closeButtons.forEach(button => {
-            button.addEventListener('click', closeAllModals);
-        });
+        // Image upload logic
+        const fileInput = document.getElementById('fileInput');
+        const imageUpload = document.getElementById('imageUpload');
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const removeImage = document.getElementById('removeImage');
 
-        window.addEventListener('click', function(e) {
-            Object.values(modals).forEach(modal => {
-                if (modal && e.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
-        });
-    });
-
-    // Your existing image upload functionality (unchanged)
-    const fileInput = document.getElementById('fileInput');
-    const imageUpload = document.getElementById('imageUpload');
-    const previewContainer = document.getElementById('previewContainer');
-    const imagePreview = document.getElementById('imagePreview');
-    const removeImage = document.getElementById('removeImage');
-
-    if (imageUpload && fileInput) {
         imageUpload.onclick = () => fileInput.click();
-        fileInput.onchange = function() {
-            if (this.files[0]) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    imagePreview.src = e.target.result;
-                    previewContainer.style.display = 'block';
-                    imageUpload.style.display = 'none';
-                };
-                reader.readAsDataURL(this.files[0]);
-            }
+        fileInput.onchange = function () {
+        if (this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+            imagePreview.src = e.target.result;
+            previewContainer.style.display = 'block';
+            imageUpload.style.display = 'none';
+            };
+            reader.readAsDataURL(this.files[0]);
+        }
         };
-    }
-
-    if (removeImage) {
         removeImage.onclick = () => {
-            fileInput.value = '';
-            imagePreview.src = '';
-            previewContainer.style.display = 'none';
-            imageUpload.style.display = 'flex';
+        fileInput.value = '';
+        imagePreview.src = '';
+        previewContainer.style.display = 'none';
+        imageUpload.style.display = 'flex';
         };
-    }
-</script>
+    </script>
     </body>
 </html>
