@@ -26,13 +26,12 @@ $query = "SELECT
           FROM invoices i
           ORDER BY i.invoice_date DESC";
 
-$result = $conn->query($query);
-
-$invoices = [];
-if ($result && $result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $invoices[] = $row;
-    }
+try {
+    $stmt = $pdo->query($query);
+    $invoices = $stmt->fetchAll();
+} catch (PDOException $e) {
+    error_log("Error fetching invoices: " . $e->getMessage());
+    $invoices = [];
 }
 ?>
 <!DOCTYPE html>

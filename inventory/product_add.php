@@ -488,7 +488,7 @@ $statuses = $pdo->query("SELECT status_id, status_name FROM product_status ORDER
                 
                 <div class="form-group">
                     <label for="category">Category <span class="required">*</span></label>
-                    <select id="category" name="category_id" required>
+                    <select id="category" name="category" required>
                         <option value="">Select a category</option>
                         <?php foreach ($categories as $category): ?>
                             <option value="<?php echo htmlspecialchars($category['category_id']); ?>">
@@ -500,7 +500,7 @@ $statuses = $pdo->query("SELECT status_id, status_name FROM product_status ORDER
 
                 <div class="form-group">
                     <label for="unit">Unit <span class="required">*</span></label>
-                    <select id="unit" name="unit_id" required>
+                    <select id="unit" name="unit" required>
                         <option value="">Select a unit</option>
                         <?php foreach ($units as $unit): ?>
                             <option value="<?php echo htmlspecialchars($unit['unit_id']); ?>">
@@ -512,7 +512,7 @@ $statuses = $pdo->query("SELECT status_id, status_name FROM product_status ORDER
 
                 <div class="form-group">
     <label for="status">Status <span class="required">*</span></label>
-    <select id="status" name="status_id" required>
+    <select id="status" name="status" required>
         <option value="">Select a status</option>
         <?php foreach ($statuses as $status): ?>
             <option value="<?php echo htmlspecialchars($status['status_id']); ?>">
@@ -550,7 +550,7 @@ $statuses = $pdo->query("SELECT status_id, status_name FROM product_status ORDER
             // Validate required fields
             $required_fields = [
                 'productName', 'sku', 'quantity', 'unitPrice', 
-                'category_id', 'unit_id', 'status_id'
+                'category', 'unit', 'status'
             ];
             
             foreach ($required_fields as $field) {
@@ -601,19 +601,43 @@ $statuses = $pdo->query("SELECT status_id, status_name FROM product_status ORDER
             // Begin transaction
             $pdo->beginTransaction();
 
+            // Debug output
+            error_log("Form data: " . print_r($_POST, true));
+            error_log("Session user_id: " . print_r($_SESSION['user_id'], true));
+            
+            // Validate foreign keys exist
+            $checkCategory = $pdo->prepare("SELECT COUNT(*) FROM categories WHERE category_id = ?");
+            $checkCategory->execute([intval($_POST['category'])]);
+            if ($checkCategory->fetchColumn() == 0) {
+                throw new Exception("Selected category does not exist");
+            }
+
+            $checkUnit = $pdo->prepare("SELECT COUNT(*) FROM units WHERE unit_id = ?");
+            $checkUnit->execute([intval($_POST['unit'])]);
+            if ($checkUnit->fetchColumn() == 0) {
+                throw new Exception("Selected unit does not exist");
+            }
+
+            $checkStatus = $pdo->prepare("SELECT COUNT(*) FROM product_status WHERE status_id = ?");
+            $checkStatus->execute([intval($_POST['status'])]);
+            if ($checkStatus->fetchColumn() == 0) {
+                throw new Exception("Selected status does not exist");
+            }
+            
             // Insert into products table
             $stmt = $pdo->prepare("INSERT INTO products (
                 product_name, sku, description, category_id, 
-                unit_id, status_id, image_path, created_by, created_at, updated_at
+                unit_id, status_id, image_path, created_by,
+                created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
             
             $stmt->execute([
-                $_POST['productName'],
-                $_POST['sku'],
-                $_POST['description'] ?? null,
-                $_POST['category_id'],
-                $_POST['unit_id'],
-                $_POST['status_id'],
+                trim($_POST['productName']),
+                trim($_POST['sku']),
+                !empty($_POST['description']) ? trim($_POST['description']) : null,
+                intval($_POST['category']), // Ensure it's an integer
+                intval($_POST['unit']),     // Ensure it's an integer
+                intval($_POST['status']),   // Ensure it's an integer
                 $image_path,
                 $_SESSION['user_id']
             ]);
@@ -632,8 +656,21 @@ $statuses = $pdo->query("SELECT status_id, status_name FROM product_status ORDER
                 $_POST['unitPrice']
             ]);
 
+            // Log the successful inserts
+            error_log("Product inserted successfully with ID: " . $product_id);
+            error_log("Inventory record inserted successfully");
+            
             // Commit transaction
             $pdo->commit();
+
+            // Verify the product was actually inserted
+            $verify = $pdo->prepare("SELECT * FROM products WHERE product_id = ?");
+            $verify->execute([$product_id]);
+            $product = $verify->fetch();
+            
+            if (!$product) {
+                throw new Exception("Product verification failed - product not found after insert");
+            }
 
             // Show success message
             echo '<script>

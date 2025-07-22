@@ -12,35 +12,33 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $invoice_id = $_GET['id'];
 
 // Start transaction
-$conn->begin_transaction();
+$pdo->beginTransaction();
 
 try {
     // First delete all related invoice items
     $delete_items_query = "DELETE FROM invoice_items WHERE invoice_id = ?";
-    $stmt = $conn->prepare($delete_items_query);
-    $stmt->bind_param("i", $invoice_id);
+    $stmt = $pdo->prepare($delete_items_query);
     
-    if (!$stmt->execute()) {
-        throw new Exception("Error deleting invoice items: " . $stmt->error);
+    if (!$stmt->execute([$invoice_id])) {
+        throw new Exception("Error deleting invoice items");
     }
 
     // Then delete the invoice
     $delete_invoice_query = "DELETE FROM invoices WHERE invoice_id = ?";
-    $stmt = $conn->prepare($delete_invoice_query);
-    $stmt->bind_param("i", $invoice_id);
+    $stmt = $pdo->prepare($delete_invoice_query);
     
-    if (!$stmt->execute()) {
-        throw new Exception("Error deleting invoice: " . $stmt->error);
+    if (!$stmt->execute([$invoice_id])) {
+        throw new Exception("Error deleting invoice");
     }
 
     // Commit transaction if both deletions succeeded
-    $conn->commit();
+    $pdo->commit();
     
     $_SESSION['success_message'] = "Invoice deleted successfully";
     
 } catch (Exception $e) {
     // Rollback transaction if any error occurs
-    $conn->rollback();
+    $pdo->rollBack();
     $_SESSION['error_message'] = $e->getMessage();
 }
 

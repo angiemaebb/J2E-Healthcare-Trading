@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Start transaction
-    $conn->begin_transaction();
+    $pdo->beginTransaction();
     
     try {
         // Insert invoice
@@ -45,9 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         
-        $stmt = $conn->prepare($invoice_query);
-        $stmt->bind_param(
-            "ssssdssi", 
+        $stmt = $pdo->prepare($invoice_query);
+        $stmt->execute([
             $invoice_number,
             $customer_name,
             $customer_contact,
@@ -56,13 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $status,
             $notes,
             $created_by
-        );
+        ]);
         
-        if (!$stmt->execute()) {
-            throw new Exception("Error creating invoice: " . $stmt->error);
-        }
-        
-        $invoice_id = $conn->insert_id;
+        $invoice_id = $pdo->lastInsertId();
         
         // Validate inventory quantities
         foreach ($_POST['items'] as $item) {
@@ -73,13 +68,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                            FROM product_inventory pi
                            JOIN products p ON pi.product_id = p.product_id
                            WHERE p.product_name = ?";
-            $check_stmt = $conn->prepare($check_query);
-            $check_stmt->bind_param("s", $product_name);
-            $check_stmt->execute();
-            $check_result = $check_stmt->get_result();
+            $check_stmt = $pdo->prepare($check_query);
+            $check_stmt->execute([$product_name]);
+            $inventory = $check_stmt->fetch();
             
-            if ($check_result->num_rows > 0) {
-                $inventory = $check_result->fetch_assoc();
+            if ($inventory) {
                 if ($inventory['quantity'] < $quantity) {
                     throw new Exception("Not enough inventory for product: " . htmlspecialchars($product_name) . 
                                       " (Available: " . $inventory['quantity'] . ")");
@@ -102,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 subtotal
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             
-            $stmt = $conn->prepare($item_query);
+            $stmt = $pdo->prepare($item_query);
             
             foreach ($_POST['items'] as $item) {
                 $product_name = $item['product_name'];
@@ -116,17 +109,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $product_id = null;
                 if (!empty($product_name)) {
                     $product_query = "SELECT product_id FROM products WHERE product_name = ? LIMIT 1";
-                    $product_stmt = $conn->prepare($product_query);
-                    $product_stmt->bind_param("s", $product_name);
-                    $product_stmt->execute();
-                    $product_result = $product_stmt->get_result();
-                    if ($product_result->num_rows > 0) {
-                        $product_id = $product_result->fetch_assoc()['product_id'];
+                    $product_stmt = $pdo->prepare($product_query);
+                    $product_stmt->execute([$product_name]);
+                    $product_result = $product_stmt->fetch();
+                    if ($product_result) {
+                        $product_id = $product_result['product_id'];
                     }
                 }
                 
-                $stmt->bind_param(
-                    "iisisddd",
+                if (!$stmt->execute([
                     $invoice_id,
                     $product_id,
                     $product_name,
@@ -135,10 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $unit_price,
                     $discount,
                     $subtotal
-                );
-                
-                if (!$stmt->execute()) {
-                    throw new Exception("Error adding invoice item: " . $stmt->error);
+                ])) {
+                    throw new Exception("Error adding invoice item");
                 }
             }
         }
@@ -154,43 +143,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             WHERE product_id IN (
                                 SELECT product_id FROM products WHERE product_name = ?
                             )";
-            $update_stmt = $conn->prepare($update_query);
-            $update_stmt->bind_param("ds", $quantity, $product_name);
-            $update_stmt->execute();
+            $update_stmt = $pdo->prepare($update_query);
+            $update_stmt->execute([$quantity, $product_name]);
             
-            if ($update_stmt->affected_rows === 0) {
+            if ($update_stmt->rowCount() === 0) {
                 error_log("Inventory not updated for product: " . $product_name);
             }
         }
         
         // Commit transaction
-        $conn->commit();
+        $pdo->commit();
         
         $_SESSION['success_message'] = "Invoice created successfully!";
         header("Location: invoice.php");
         exit();
         
     } catch (Exception $e) {
-        $conn->rollback();
+        $pdo->rollBack();
         $error_message = $e->getMessage();
     }
 }
 
 // Fetch products with inventory data - ENHANCED QUERY
-$products = [];
-$product_query = "SELECT p.product_id, p.product_name, pi.unit_price, pi.quantity as stock_quantity 
-                 FROM products p
-                 JOIN product_inventory pi ON p.product_id = pi.product_id
-                 WHERE p.product_name IS NOT NULL AND p.product_name != ''
-                 ORDER BY p.product_name ASC
-                 LIMIT 100";
-$result = $conn->query($product_query);
-if ($result) {
-    $products = $result->fetch_all(MYSQLI_ASSOC);
+try {
+    $product_query = "SELECT p.product_id, p.product_name, pi.unit_price, pi.quantity as stock_quantity 
+                     FROM products p
+                     JOIN product_inventory pi ON p.product_id = pi.product_id
+                     WHERE p.product_name IS NOT NULL AND p.product_name != ''
+                     ORDER BY p.product_name ASC
+                     LIMIT 100";
+    $stmt = $pdo->query($product_query);
+    $products = $stmt->fetchAll();
+    
     // Debug output
     error_log("Products fetched: " . count($products));
-} else {
-    error_log("Product query error: " . $conn->error);
+} catch (PDOException $e) {
+    error_log("Product query error: " . $e->getMessage());
     $products = [];
 }
 ?>

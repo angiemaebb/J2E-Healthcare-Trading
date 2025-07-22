@@ -13,17 +13,14 @@ $username = $_SESSION['username'];
 
 // Fetch invoice data
 $invoice_query = "SELECT * FROM invoices WHERE invoice_id = ?";
-$stmt = $conn->prepare($invoice_query);
-$stmt->bind_param("i", $invoice_id);
-$stmt->execute();
-$invoice_result = $stmt->get_result();
+$stmt = $pdo->prepare($invoice_query);
+$stmt->execute([$invoice_id]);
+$invoice = $stmt->fetch();
 
-if ($invoice_result->num_rows === 0) {
+if (!$invoice) {
     header("Location: invoice.php");
     exit();
 }
-
-$invoice = $invoice_result->fetch_assoc();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -49,8 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     updated_at = NOW()
                     WHERE invoice_id = ?";
     
-    $stmt = $conn->prepare($update_query);
-    $stmt->bind_param("ssssdssi", 
+    $stmt = $pdo->prepare($update_query);
+    
+    if ($stmt->execute([
         $invoice_number,
         $customer_name,
         $customer_contact,
@@ -59,14 +57,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status,
         $notes,
         $invoice_id
-    );
-    
-    if ($stmt->execute()) {
+    ])) {
         $_SESSION['success_message'] = "Invoice updated successfully!";
         header("Location: invoice.php");
         exit();
     } else {
-        $error_message = "Error updating invoice: " . $conn->error;
+        $error_message = "Error updating invoice";
     }
 }
 

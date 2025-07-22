@@ -1,0 +1,93 @@
+[22-Jul-2025 19:55:54 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:55:55 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:55:55 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:55:55 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:55:56 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:55:56 Europe/Berlin] PHP Warning:  Undefined variable $conn in C:\xampp\htdocs\J2E-Healthcare-Trading\invoice\invoice.php on line 29
+[22-Jul-2025 19:55:56 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to a member function query() on null in C:\xampp\htdocs\J2E-Healthcare-Trading\invoice\invoice.php:29
+Stack trace:
+#0 {main}
+  thrown in C:\xampp\htdocs\J2E-Healthcare-Trading\invoice\invoice.php on line 29
+[22-Jul-2025 19:55:58 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:56:10 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:56:12 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:56:13 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:56:30 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:56:30 Europe/Berlin] Form data: Array
+(
+    [productName] => test1
+    [sku] => 123123
+    [description] => qw123wwe
+    [quantity] => 12332
+    [unitPrice] => 21312
+    [category] => 1
+    [unit] => 7
+    [status] => 25
+)
+
+[22-Jul-2025 19:56:31 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:56:58 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:56:58 Europe/Berlin] PHP Warning:  Undefined variable $conn in C:\xampp\htdocs\J2E-Healthcare-Trading\invoice\invoice.php on line 29
+[22-Jul-2025 19:56:58 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to a member function query() on null in C:\xampp\htdocs\J2E-Healthcare-Trading\invoice\invoice.php:29
+Stack trace:
+#0 {main}
+  thrown in C:\xampp\htdocs\J2E-Healthcare-Trading\invoice\invoice.php on line 29
+[22-Jul-2025 19:59:03 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:59:03 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:59:05 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 19:59:05 Europe/Berlin] PHP Warning:  Undefined variable $conn in C:\xampp\htdocs\J2E-Healthcare-Trading\invoice\invoice_add.php on line 187
+[22-Jul-2025 19:59:05 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to a member function query() on null in C:\xampp\htdocs\J2E-Healthcare-Trading\invoice\invoice_add.php:187
+Stack trace:
+#0 {main}
+  thrown in C:\xampp\htdocs\J2E-Healthcare-Trading\invoice\invoice_add.php on line 187
+[22-Jul-2025 19:59:08 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:12:46 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:12:48 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:12:49 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:12:49 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:12:49 Europe/Berlin] Products fetched: 33
+[22-Jul-2025 20:12:50 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:12:52 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:12:54 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:13:05 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:13:10 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:13:13 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:18:38 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:18:40 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:18:41 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:18:54 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:18:54 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:20:27 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:20:28 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:20:28 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:20:29 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:20:30 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:20:42 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:20:42 Europe/Berlin] Form data: Array
+(
+    [productName] => 123
+    [sku] => 123
+    [description] => 132
+    [quantity] => 132
+    [unitPrice] => 123
+    [category] => 2
+    [unit] => 7
+    [status] => 30
+)
+
+[22-Jul-2025 20:20:42 Europe/Berlin] Session user_id: 1
+[22-Jul-2025 20:20:42 Europe/Berlin] Product inserted successfully with ID: 35
+[22-Jul-2025 20:20:42 Europe/Berlin] Inventory record inserted successfully
+[22-Jul-2025 20:20:43 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:22:25 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:22:26 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:22:30 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:22:40 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:22:40 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:27:56 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:27:59 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:28:01 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:28:02 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:28:02 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:28:05 Europe/Berlin] Database connection established successfully
+[22-Jul-2025 20:28:06 Europe/Berlin] Database connection established successfully
