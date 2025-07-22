@@ -1,0 +1,6 @@
+[22-Jul-2025 19:21:56 Europe/Berlin] Script started - 2025-07-22 19:21:56
+[22-Jul-2025 19:21:56 Europe/Berlin] Before HTML output - 2025-07-22 19:21:56
+[22-Jul-2025 19:21:56 Europe/Berlin] Error [2] Undefined array key "role_name" on line 933 in file C:\xampp\htdocs\J2E-Healthcare-Trading\category\category_edit.php
+[22-Jul-2025 19:21:56 Europe/Berlin] PHP Warning:  Undefined array key "role_name" in C:\xampp\htdocs\J2E-Healthcare-Trading\category\category_edit.php on line 933
+[22-Jul-2025 19:21:56 Europe/Berlin] Error [2] Undefined array key "role_name" on line 933 in file C:\xampp\htdocs\J2E-Healthcare-Trading\category\category_edit.php
+[22-Jul-2025 19:21:56 Europe/Berlin] PHP Warning:  Undefined array key "role_name" in C:\xampp\htdocs\J2E-Healthcare-Trading\category\category_edit.php on line 933

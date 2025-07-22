@@ -1,0 +1,787 @@
+<?php
+require_once '../config/db.php';
+require_once '../config/session_check.php';
+
+// Get username from session
+$username = $_SESSION['username'];
+
+// Get category ID from URL
+$category_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+
+// Initialize variables
+$category_name = '';
+$category_description = '';
+$products = [];
+$category_products = [];
+
+// Fetch category details
+if ($category_id > 0) {
+    try {
+        // Get category info
+        $stmt = $pdo->prepare("SELECT * FROM categories WHERE category_id = ?");
+        $stmt->execute([$category_id]);
+        $category = $stmt->fetch();
+        
+        if ($category) {
+            $category_name = $category['category_name'];
+            $category_description = $category['description'];
+            
+            // Get products already in this category
+            $stmt = $pdo->prepare("SELECT product_id FROM products WHERE category_id = ?");
+            $stmt->execute([$category_id]);
+            $category_products = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        }
+        
+        // Get all products not assigned to any category
+        $stmt = $pdo->prepare("SELECT product_id, product_name, sku FROM products WHERE category_id IS NULL OR category_id = 0");
+        $stmt->execute();
+        $products = $stmt->fetchAll();
+        
+    } catch (PDOException $e) {
+        $_SESSION['error'] = "Database error: " . $e->getMessage();
+    }
+}
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $category_id > 0) {
+    try {
+        $pdo->beginTransaction();
+        
+        // Get form data
+        $new_name = trim($_POST['categoryName']);
+        $new_description = trim($_POST['description']);
+        $selected_items = isset($_POST['items']) ? $_POST['items'] : [];
+        
+        // Validate
+        if (empty($new_name)) {
+            throw new Exception("Category name is required");
+        }
+        
+        // Update category
+        $stmt = $pdo->prepare("UPDATE categories SET category_name = ?, description = ? WHERE category_id = ?");
+        $stmt->execute([$new_name, $new_description, $category_id]);
+        
+        // First remove all products from this category
+        $stmt = $pdo->prepare("UPDATE products SET category_id = NULL WHERE category_id = ?");
+        $stmt->execute([$category_id]);
+        
+        // Then add selected products to this category
+        if (!empty($selected_items)) {
+            $placeholders = implode(',', array_fill(0, count($selected_items), '?'));
+            $stmt = $pdo->prepare("UPDATE products SET category_id = ? WHERE product_id IN ($placeholders)");
+            $stmt->execute(array_merge([$category_id], $selected_items));
+        }
+        
+        $pdo->commit();
+        $_SESSION['success'] = "Category updated successfully!";
+        header("Location: category_edit.php?id=".$category_id);
+        exit();
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        $_SESSION['error'] = "Error: " . $e->getMessage();
+        header("Location: category_edit.php?id=".$category_id);
+        exit();
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+    <link rel="icon" href="../images/J2E logo favicon.png" type="image/x-icon">
+    <title>Edit Category - J2E Healthcare</title>
+    <style>
+        :root {
+            --main-color: #db2c24;
+            --secondary-color: #ff914d;
+            --light-gray: #e7e6e6;
+            --dark-gray: #333;
+            --medium-gray: #777;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            color: var(--dark-gray);
+            line-height: 1.6;
+            min-height: 100vh;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            width: 100%;
+        }
+
+        .nav-left, .nav-right {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+            margin-left: 20px;
+        }
+
+        .nav-center {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+        }
+
+        .logo img {
+            max-height: 50px;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            gap: 20px;
+        }
+
+        .nav-menu a {
+            text-decoration: none;
+            color: var(--main-color);
+            padding: 8px 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-menu a.active {
+            font-weight: bold;
+        }
+
+        .nav-menu a:hover {
+            font-weight: bold;
+        }
+
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-right: 20px;
+            position: relative;
+        }
+
+        .user-profile {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .username {
+            font-weight: bold;
+            color: var(--main-color);
+            white-space: nowrap;
+        }
+
+        .hamburger {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            color: var(--main-color);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            min-width: 180px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 10px 0;
+            display: none;
+            z-index: 1001;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            text-decoration: none;
+            color: var(--main-color);
+            font-size: 0.8rem;
+        }
+
+        .content {
+            width: 100%;
+            max-width: 2000px;
+            margin: 40px auto;
+            padding: 0 40px;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-title {
+            color: var(--main-color);
+            font-size: 36px;
+            font-weight: 700;
+            position: relative;
+            padding-bottom: 15px;
+        }
+
+        .page-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            max-width: 100%;
+            height: 4px;
+            background: var(--main-color);
+            border-radius: 2px;
+        }
+
+        .layout-container {
+            display: flex;
+            gap: 30px;
+        }
+
+        .existing-categories {
+            flex: 1;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            min-width: 350px;
+        }
+
+        .new-category {
+            flex: 2;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+
+        .section-header {
+            color: var(--main-color);
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--main-color);
+        }
+
+        .categories-box {
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .categories-list {
+            list-style: none;
+        }
+
+        .category-item {
+            padding: 15px 0;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .category-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-name {
+            font-size: 16px;
+            color: var(--dark-gray);
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .category-item:hover .category-name {
+            font-weight: 600;
+            color: var(--main-color);
+        }
+
+        .category-description {
+            font-size: 14px;
+            color: var(--medium-gray);
+            margin-bottom: 10px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 400;
+            line-height: 1.4;
+        }
+
+        .category-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--medium-gray);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: all 0.3s;
+            font-family: 'Montserrat';
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            border-color: var(--main-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(219, 44, 36, 0.2);
+        }
+
+        .required {
+            color: var(--main-color);
+        }
+
+        .items-section {
+            margin-top: 30px;
+        }
+
+        .items-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .section-label {
+            color: var(--main-color);
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .search-box {
+            position: relative;
+            width: 300px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border: 1px solid var(--light-gray);
+            background: var(--light-gray);
+            border-radius: 6px;
+            font-size: 14px;
+            color: var(--dark-gray);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--medium-gray);
+        }
+
+        .items-container {
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .items-grid {
+            display: grid;
+            grid-template-columns: 1fr 100px;
+            gap: 10px;
+        }
+
+        .item-header {
+            font-weight: 600;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--light-gray);
+            margin-bottom: 10px;
+            color: var(--medium-gray);
+        }
+
+        .items-list {
+            display: contents;
+        }
+
+        .item-name-col {
+            grid-column: 1;
+        }
+
+        .item-sku-col {
+            grid-column: 2;
+            text-align: right;
+        }
+
+        .item-row {
+            display: contents;
+        }
+
+        .item-name, .item-sku {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--light-gray);
+            transition: background-color 0.2s;
+        }
+
+        .item-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .item-sku {
+            font-family: monospace;
+            font-weight: 500;
+            color: var(--medium-gray);
+        }
+
+        .item-row:hover .item-name,
+        .item-row:hover .item-sku {
+            background-color: rgba(219, 44, 36, 0.05);
+        }
+
+        .btn-container {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-top: 30px;
+        }
+
+        .btn-save {
+            background-color: var(--main-color);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-save:hover {
+            background-color: #c0251e;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 16px 28px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: fadeInOut 3s forwards;
+        }
+
+        .toast.error {
+            background: #f44336;
+        }
+
+        .toast i {
+            font-size: 22px;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        @media (max-width: 1200px) {
+            .layout-container {
+                flex-direction: column;
+            }
+            
+            .existing-categories, .new-category {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-center {
+                display: none;
+            }
+
+            .username {
+                display: none;
+            }
+
+            .content {
+                margin: 20px auto;
+                padding: 0 15px;
+            }
+
+            .page-title {
+                font-size: 28px;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="toast" style="display: block;">
+            <i class="fas fa-check-circle"></i>
+            <span><?php echo htmlspecialchars($_SESSION['success']); ?></span>
+        </div>
+        <?php unset($_SESSION['success']); ?>
+    <?php endif; ?>
+
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="toast error" style="display: block;">
+            <i class="fas fa-exclamation-circle"></i>
+            <span><?php echo htmlspecialchars($_SESSION['error']); ?></span>
+        </div>
+        <?php unset($_SESSION['error']); ?>
+    <?php endif; ?>
+
+    <nav class="top-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <img src="../images/J2E-logo2.png" alt="J2E Healthcare Trading Logo">
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <ul class="nav-menu">
+                <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
+                <li><a href="../category/viewCategories.php" class="active"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="../user/user_management.php"><i class="fas fa-user"></i> User</a></li>
+                <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
+            </ul>
+        </div>
+
+        <div class="nav-right">
+            <div class="user-info">
+            <img src="<?php 
+                if (!empty($_SESSION['user_image'])) {
+                    echo (strpos($_SESSION['user_image'], '/') === 0 ? '' : '../') . htmlspecialchars($_SESSION['user_image']);
+                } else {
+                    echo '../images/sample user profile pic.jpg';
+                }
+            ?>" alt="User Profile" class="user-profile">
+            <span class="username"><?php echo htmlspecialchars($username); ?></span>
+                <button class="hamburger" id="menuDropdown">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="../menu/settings.php"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="../menu/help.php"><i class="fas fa-question-circle"></i> Help</a>
+                    <form method="POST" action="../authenticate/logout.php" style="margin: 0;">
+                        <button type="submit" name="logout" style="background: none; border: none; width: 100%; text-align: left; padding: 10px 15px; color: var(--main-color); font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="content">
+        <div class="page-header">
+            <h1 class="page-title">Edit Category</h1>
+        </div>
+
+        <div class="layout-container">
+            <!-- Category Details Section -->
+            <div class="existing-categories">
+                <h2 class="section-header">Category Details</h2>
+                
+                <div class="categories-box">
+                    <?php if ($category_id > 0): ?>
+                        <div class="category-item">
+                            <div class="category-name"><?php echo htmlspecialchars($category_name); ?></div>
+                            <div class="category-description">
+                                <?php echo htmlspecialchars($category_description); ?>
+                            </div>
+                            <div class="category-stats">
+                                <span><?php echo count($category_products); ?> items</span>
+                                <span>Category ID: <?php echo $category_id; ?></span>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <div class="category-item">
+                            <div class="category-name">No category selected</div>
+                            <div class="category-description">
+                                Please select a category to edit from the categories list.
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Edit Category Section -->
+            <div class="new-category">
+                <h2 class="section-header"><?php echo $category_id ? 'Edit' : 'Select'; ?> Category</h2>
+                
+                <?php if ($category_id > 0): ?>
+                <form id="categoryForm" method="POST" action="category_edit.php?id=<?php echo $category_id; ?>">
+                    <div class="form-group">
+                        <label for="categoryName">Category Name <span class="required">*</span></label>
+                        <input type="text" id="categoryName" name="categoryName" 
+                               value="<?php echo htmlspecialchars($category_name); ?>" 
+                               placeholder="Enter category name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="categoryDescription">Description</label>
+                        <textarea id="categoryDescription" name="description" 
+                                  placeholder="Enter category description" rows="3"><?php echo htmlspecialchars($category_description); ?></textarea>
+                    </div>
+
+                    <div class="items-section">
+                        <div class="items-header">
+                            <div class="section-label">Items in this category</div>
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="itemSearch" placeholder="Search items...">
+                            </div>
+                        </div>
+                        
+                        <div class="items-container">
+                            <div class="items-grid">
+                                <div class="item-header item-name-col">ITEM NAME</div>
+                                <div class="item-header item-sku-col">SKU</div>
+                                
+                                <div class="items-list">
+                                    <?php if (empty($products)): ?>
+                                        <div class="item-row">
+                                            <div class="item-name item-name-col" style="grid-column: 1 / -1;">
+                                                No products available to assign
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <?php foreach ($products as $product): ?>
+                                            <div class="item-row">
+                                                <div class="item-name item-name-col">
+                                                    <input type="checkbox" id="item<?php echo $product['product_id']; ?>" 
+                                                           name="items[]" value="<?php echo $product['product_id']; ?>"
+                                                           <?php echo in_array($product['product_id'], $category_products) ? 'checked' : ''; ?>>
+                                                    <label for="item<?php echo $product['product_id']; ?>">
+                                                        <?php echo htmlspecialchars($product['product_name']); ?>
+                                                    </label>
+                                                </div>
+                                                <div class="item-sku item-sku-col"><?php echo htmlspecialchars($product['sku']); ?></div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-container">
+                        <button type="submit" class="btn-save" id="saveCategory">
+                            <i class="fas fa-save"></i> Update Category
+                        </button>
+                    </div>
+                </form>
+                <?php else: ?>
+                    <div class="form-group">
+                        <p>Please select a category to edit from the categories list.</p>
+                        <a href="viewCategories.php" class="btn-save" style="display: inline-block; text-decoration: none;">
+                            <i class="fas fa-list"></i> View Categories
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dropdown functionality
+        const userDropdown = document.getElementById('userDropdown');
+        document.getElementById('menuDropdown').onclick = (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        };
+        
+        document.addEventListener('click', () => userDropdown.classList.remove('show'));
+
+        // Search functionality
+        const searchInput = document.getElementById('itemSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const items = document.querySelectorAll('.item-row');
+                
+                items.forEach(item => {
+                    const itemName = item.querySelector('.item-name label').textContent.toLowerCase();
+                    const itemSku = item.querySelector('.item-sku').textContent.toLowerCase();
+                    
+                    if (itemName.includes(searchTerm) || itemSku.includes(searchTerm)) {
+                        item.style.display = 'contents';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Form validation
+        const categoryForm = document.getElementById('categoryForm');
+        if (categoryForm) {
+            categoryForm.addEventListener('submit', function(e) {
+                const categoryName = document.getElementById('categoryName').value.trim();
+                
+                if (!categoryName) {
+                    e.preventDefault();
+                    alert('Please enter a category name');
+                    return false;
+                }
+                
+                return true;
+            });
+        }
+    </script>
+</body>
+</html>
