@@ -508,7 +508,7 @@ $due_date = date('Y-m-d', strtotime($invoice['invoice_date'] . ' + 30 days'));
         <div class="nav-center">
             <a href="../home/dashboard.php" class="nav-item"><i class="material-icons">home</i> Home</a>
             <a href="../inventory/inventory.php" class="nav-item"><i class="material-icons">inventory_2</i> Inventory</a>
-            <a href="../category/category_edit.php" class="nav-item"><i class="material-icons">category</i> Category</a>
+            <a href="../category/viewCategories.php" class="nav-item"><i class="material-icons">category</i> Category</a>
             <a href="../user/user_management.php" class="nav-item"><i class="material-icons">person</i> User</a>
             <a href="../invoice/invoice.php" class="nav-item active"><i class="material-icons">receipt</i> Invoice</a>
         </div>

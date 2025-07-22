@@ -1,10 +1,96 @@
 <?php
 require_once '../config/db.php';
 require_once '../config/session_check.php';
-//requireRoles(['owner', 'admin', 'employee']);
 
 // Get username from session
 $username = $_SESSION['username'];
+
+// Fetch categories from database
+try {
+    $categoriesQuery = "SELECT c.*, 
+                       (SELECT COUNT(*) FROM products p WHERE p.category_id = c.category_id) as product_count
+                       FROM categories c
+                       ORDER BY c.category_name";
+    $categoriesStmt = $pdo->query($categoriesQuery);
+    $categories = $categoriesStmt->fetchAll();
+} catch(PDOException $e) {
+    die("Error loading categories: " . $e->getMessage());
+}
+
+// Get category ID to edit from URL
+$editCategoryId = $_GET['id'] ?? null;
+$currentCategory = null;
+
+if ($editCategoryId) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM categories WHERE category_id = ?");
+        $stmt->execute([$editCategoryId]);
+        $currentCategory = $stmt->fetch();
+        
+        if (!$currentCategory) {
+            $_SESSION['error'] = "Category not found";
+            header("Location: category_add.php");
+            exit();
+        }
+    } catch(PDOException $e) {
+        die("Error loading category: " . $e->getMessage());
+    }
+}
+
+// Fetch products for this category and uncategorized products
+try {
+    $productsQuery = "SELECT product_id, product_name, sku FROM products 
+                     WHERE category_id = ? OR category_id IS NULL 
+                     ORDER BY product_name";
+    $productsStmt = $pdo->prepare($productsQuery);
+    $productsStmt->execute([$editCategoryId]);
+    $products = $productsStmt->fetchAll();
+} catch(PDOException $e) {
+    die("Error loading products: " . $e->getMessage());
+}
+
+// Handle form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $categoryName = $_POST['categoryName'] ?? '';
+    $description = $_POST['description'] ?? '';
+    $selectedItems = $_POST['items'] ?? [];
+    
+    try {
+        $pdo->beginTransaction();
+        
+        if ($editCategoryId) {
+            // Update existing category
+            $stmt = $pdo->prepare("UPDATE categories SET category_name = ?, description = ? WHERE category_id = ?");
+            $stmt->execute([$categoryName, $description, $editCategoryId]);
+            
+            // First remove all products from this category
+            $stmt = $pdo->prepare("UPDATE products SET category_id = NULL WHERE category_id = ?");
+            $stmt->execute([$editCategoryId]);
+        } else {
+            // Create new category
+            $stmt = $pdo->prepare("INSERT INTO categories (category_name, description) VALUES (?, ?)");
+            $stmt->execute([$categoryName, $description]);
+            $editCategoryId = $pdo->lastInsertId();
+        }
+        
+        // Add selected products to this category
+        if (!empty($selectedItems)) {
+            $placeholders = implode(',', array_fill(0, count($selectedItems), '?'));
+            $stmt = $pdo->prepare("UPDATE products SET category_id = ? WHERE product_id IN ($placeholders)");
+            $stmt->execute(array_merge([$editCategoryId], $selectedItems));
+        }
+        
+        $pdo->commit();
+        $_SESSION['success'] = "Category " . ($editCategoryId ? "updated" : "created") . " successfully!";
+        header("Location: category_add.php");
+        exit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        $_SESSION['error'] = "Error: " . $e->getMessage();
+        header("Location: category_edit.php?id=" . $editCategoryId);
+        exit();
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -440,7 +526,53 @@ $username = $_SESSION['username'];
         .toast i {
             font-size: 22px;
         }
-
+        .edit-mode-indicator {
+            background-color: var(--main-color);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .edit-mode-indicator i {
+            font-size: 16px;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        
+        .btn-cancel {
+            background-color: var(--medium-gray);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-cancel:hover {
+            background-color: #5a6268;
+        }
+        
+        .selected-items-count {
+            font-size: 14px;
+            color: var(--medium-gray);
+            margin-left: 10px;
+        }
         @keyframes fadeInOut {
             0% { opacity: 0; transform: translateY(-20px); }
             10% { opacity: 1; transform: translateY(0); }
@@ -747,6 +879,22 @@ $username = $_SESSION['username'];
     </style>
 </head>
 <body>
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="toast" style="display: block;">
+            <i class="fas fa-check-circle"></i>
+            <span><?php echo htmlspecialchars($_SESSION['success']); ?></span>
+        </div>
+        <?php unset($_SESSION['success']); ?>
+    <?php endif; ?>
+
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="toast error" style="display: block;">
+            <i class="fas fa-exclamation-circle"></i>
+            <span><?php echo htmlspecialchars($_SESSION['error']); ?></span>
+        </div>
+        <?php unset($_SESSION['error']); ?>
+    <?php endif; ?>
+
     <nav class="top-nav">
         <div class="nav-left">
             <div class="logo">
@@ -758,7 +906,7 @@ $username = $_SESSION['username'];
             <ul class="nav-menu">
                 <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
                 <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="category_edit.php" class="active"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="../category/viewCategories.php" class="active"><i class="fas fa-tags"></i> Category</a></li>
                 <?php if ($_SESSION['role_name'] === 'owner' || $_SESSION['role_name'] === 'admin'): ?>
                     <li><a href="../user/user_management.php"><i class="fas fa-solid fa-user"></i> User</a></li>
                 <?php endif; ?>
@@ -766,25 +914,9 @@ $username = $_SESSION['username'];
             </ul>
         </div>
 
-        <div class="nav-right">
-            <div class="user-info">
-                <img src="https://via.placeholder.com/30x30?text=U" alt="User Profile" class="user-profile">
-                <span class="username"><?php echo htmlspecialchars($username); ?></span>
-                <button class="hamburger" id="menuDropdown">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <div class="user-dropdown" id="userDropdown">
-                    <a href="#settings"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="#help"><i class="fas fa-question-circle"></i> Help</a>
-                    <a id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <div class="content">
+       <div class="content">
         <div class="page-header">
-            <h1 class="page-title">Category Management</h1>
+            <h1 class="page-title"><?php echo $editCategoryId ? 'Edit' : 'Add'; ?> Category</h1>
         </div>
 
         <div class="layout-container">
@@ -794,72 +926,67 @@ $username = $_SESSION['username'];
                 
                 <div class="categories-box">
                     <ul class="categories-list">
-                        <?php
-                        // Database connection
-                        $servername = "localhost";
-                        $username = "username";
-                        $password = "password";
-                        $dbname = "inventory_db";
-                        
-                        try {
-                            $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
-                            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                            
-                            // Fetch categories from database
-                            $stmt = $conn->prepare("SELECT c.id, c.name, c.description, COUNT(i.id) as item_count, 
-                                                   MAX(i.updated_at) as last_updated 
-                                                   FROM categories c 
-                                                   LEFT JOIN items i ON c.id = i.category_id 
-                                                   GROUP BY c.id");
-                            $stmt->execute();
-                            
-                            $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                            
-                            if (empty($categories)) {
-                                echo '<li class="category-item">No categories found</li>';
-                            } else {
-                                foreach ($categories as $category) {
-                                    echo '<li class="category-item">';
-                                    echo '<div class="category-name">' . htmlspecialchars($category['name']) . '</div>';
-                                    echo '<div class="category-description">' . 
-                                         ($category['description'] ? htmlspecialchars($category['description']) : 'No description provided') . 
-                                         '</div>';
-                                    echo '<div class="category-stats">';
-                                    echo '<span>' . $category['item_count'] . ' items</span>';
-                                    echo '<span>Last updated: ' . ($category['last_updated'] ? date('Y-m-d', strtotime($category['last_updated'])) : 'N/A') . '</span>';
-                                    echo '</div>';
-                                    echo '</li>';
-                                }
-                            }
-                        } catch(PDOException $e) {
-                            echo '<li class="category-item">Error loading categories: ' . htmlspecialchars($e->getMessage()) . '</li>';
-                        }
-                        ?>
+                        <?php foreach ($categories as $category): ?>
+                            <li class="category-item">
+                                <div class="category-name">
+                                    <?php if ($editCategoryId == $category['category_id']): ?>
+                                        <i class="fas fa-edit" style="color: var(--main-color); margin-right: 8px;"></i>
+                                    <?php endif; ?>
+                                    <?php echo htmlspecialchars($category['category_name']); ?>
+                                </div>
+                                <div class="category-description">
+                                    <?php echo htmlspecialchars($category['description'] ?? 'No description'); ?>
+                                </div>
+                                <div class="category-stats">
+                                    <span><?php echo $category['product_count']; ?> items</span>
+                                    <span>
+                                        <a href="category_edit.php?id=<?php echo $category['category_id']; ?>" 
+                                           style="color: var(--main-color); text-decoration: none;">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    </span>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
                     </ul>
                 </div>
             </div>
 
-            <!-- Add New Category Section -->
+            <!-- Edit Category Section -->
             <div class="new-category">
-                <h2 class="section-header">Edit Category</h2>
+                <?php if ($editCategoryId): ?>
+                    <div class="edit-mode-indicator">
+                        <i class="fas fa-edit"></i>
+                        EDITING MODE
+                    </div>
+                <?php endif; ?>
                 
-                <form id="categoryForm" method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
+                <h2 class="section-header"><?php echo $editCategoryId ? 'Edit Category' : 'Add New Category'; ?></h2>
+                
+                <form id="categoryForm" method="POST" action="category_edit.php<?php echo $editCategoryId ? '?id='.$editCategoryId : ''; ?>">
                     <div class="form-group">
                         <label for="categoryName">Category Name <span class="required">*</span></label>
-                        <input type="text" id="categoryName" name="categoryName" placeholder="Enter category name" required>
+                        <input type="text" id="categoryName" name="categoryName" 
+                               value="<?php echo htmlspecialchars($currentCategory['category_name'] ?? ''); ?>" 
+                               placeholder="Enter category name" required>
                     </div>
 
                     <div class="form-group">
                         <label for="categoryDescription">Description</label>
-                        <textarea id="categoryDescription" name="description" placeholder="Enter category description" rows="3"></textarea>
+                        <textarea id="categoryDescription" name="description" 
+                                  placeholder="Enter category description" rows="3"><?php 
+                                  echo htmlspecialchars($currentCategory['description'] ?? ''); ?></textarea>
                     </div>
 
                     <div class="items-section">
                         <div class="items-header">
-                            <div class="section-label">Items under this category</div>
+                            <div class="section-label">
+                                Items in this category
+                                <span class="selected-items-count" id="selectedCount">0 selected</span>
+                            </div>
                             <div class="search-box">
                                 <i class="fas fa-search"></i>
-                                <input type="text" placeholder="Search items..." id="itemSearch">
+                                <input type="text" id="itemSearch" placeholder="Search items...">
                             </div>
                         </div>
                         
@@ -869,212 +996,34 @@ $username = $_SESSION['username'];
                                 <div class="item-header item-sku-col">SKU</div>
                                 
                                 <div class="items-list">
-                                    <?php
-                                    try {
-                                        if (!isset($conn)) {
-                                            $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
-                                            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                                        }
-                                        
-                                        // Fetch items not assigned to any category
-                                        $stmt = $conn->prepare("SELECT id, name, sku FROM items WHERE category_id IS NULL OR category_id = ''");
-                                        $stmt->execute();
-                                        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                                        
-                                        if (empty($items)) {
-                                            echo '<div class="item-row">';
-                                            echo '<div class="item-name item-name-col" style="grid-column: 1 / -1;">No unassigned items found</div>';
-                                            echo '</div>';
-                                        } else {
-                                            foreach ($items as $item) {
-                                                echo '<div class="item-row">';
-                                                echo '<div class="item-name item-name-col">';
-                                                echo '<input type="checkbox" id="item' . $item['id'] . '" name="items[]" value="' . $item['id'] . '">';
-                                                echo '<label for="item' . $item['id'] . '">' . htmlspecialchars($item['name']) . '</label>';
-                                                echo '</div>';
-                                                echo '<div class="item-sku item-sku-col">' . htmlspecialchars($item['sku']) . '</div>';
-                                                echo '</div>';
-                                            }
-                                        }
-                                    } catch(PDOException $e) {
-                                        echo '<div class="item-row">';
-                                        echo '<div class="item-name item-name-col" style="grid-column: 1 / -1;">Error loading items: ' . 
-                                             htmlspecialchars($e->getMessage()) . '</div>';
-                                        echo '</div>';
-                                    }
-                                    
-                                    // Close connection if it was opened
-                                    if (isset($conn)) {
-                                        $conn = null;
-                                    }
+                                    <?php foreach ($products as $product): 
+                                        $isChecked = ($product['category_id'] == ($editCategoryId ?? null));
                                     ?>
+                                        <div class="item-row">
+                                            <div class="item-name item-name-col">
+                                                <input type="checkbox" id="item<?php echo $product['product_id']; ?>" 
+                                                       name="items[]" value="<?php echo $product['product_id']; ?>"
+                                                       <?php echo $isChecked ? 'checked' : ''; ?>>
+                                                <label for="item<?php echo $product['product_id']; ?>">
+                                                    <?php echo htmlspecialchars($product['product_name']); ?>
+                                                </label>
+                                            </div>
+                                            <div class="item-sku item-sku-col"><?php echo htmlspecialchars($product['sku']); ?></div>
+                                        </div>
+                                    <?php endforeach; ?>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="btn-container">
+                    <div class="form-actions">
+                        <a href="category_add.php" class="btn-cancel">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
                         <button type="submit" class="btn-save" id="saveCategory">
-                            <i class="fas fa-save"></i> Update Category
+                            <i class="fas fa-save"></i> <?php echo $editCategoryId ? 'Update' : 'Save'; ?> Category
                         </button>
                     </div>
-                </form>
-                
-                <?php
-                if ($_SERVER["REQUEST_METHOD"] == "POST") {
-                    try {
-                        $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
-                        $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                        
-                        // Get form data
-                        $categoryName = $_POST['categoryName'] ?? '';
-                        $description = $_POST['description'] ?? '';
-                        $selectedItems = $_POST['items'] ?? [];
-                        
-                        // Validate
-                        if (empty($categoryName)) {
-                            throw new Exception("Category name is required");
-                        }
-                        
-                        // Begin transaction
-                        $conn->beginTransaction();
-                        
-                        // Insert new category
-                        $stmt = $conn->prepare("INSERT INTO categories (name, description) VALUES (:name, :description)");
-                        $stmt->bindParam(':name', $categoryName);
-                        $stmt->bindParam(':description', $description);
-                        $stmt->execute();
-                        
-                        $categoryId = $conn->lastInsertId();
-                        
-                        // Update selected items with the new category ID
-                        if (!empty($selectedItems)) {
-                            $placeholders = implode(',', array_fill(0, count($selectedItems), '?'));
-                            $stmt = $conn->prepare("UPDATE items SET category_id = ? WHERE id IN ($placeholders)");
-                            $stmt->execute(array_merge([$categoryId], $selectedItems));
-                        }
-                        
-                        // Commit transaction
-                        $conn->commit();
-                        
-                        // Show success message
-                        echo '<script>
-                            showToast("New category \"' . addslashes($categoryName) . '\" created successfully!", "success");
-                            setTimeout(() => {
-                                window.location.href = "category_add.php";
-                            }, 3000);
-                        </script>';
-                    } catch (Exception $e) {
-                        // Rollback transaction on error
-                        if (isset($conn) && $conn->inTransaction()) {
-                            $conn->rollBack();
-                        }
-                        
-                        // Show error message
-                        echo '<script>
-                            showToast("Error: ' . addslashes($e->getMessage()) . '", "error");
-                        </script>';
-                    } finally {
-                        if (isset($conn)) {
-                            $conn = null;
-                        }
-                    }
-                }
-                ?>
-            </div>
-        </div>
-    </div>
-
-    <!--Menu things-->
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3><i class="fas fa-cog"></i> System Settings</h3>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-user-cog"></i> Account Settings</h4>
-                <div class="setting-item">
-                    <label>Change Password</label>
-                    <button class="setting-btn">Update</button>
-                </div>
-                <div class="setting-item">
-                    <label>Notification Preferences</label>
-                    <button class="setting-btn">Configure</button>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-sliders-h"></i> System Preferences</h4>
-                <div class="setting-item">
-                    <label>Theme Color</label>
-                    <select class="setting-select">
-                        <option>Red (Default)</option>
-                        <option>Blue</option>
-                        <option>Green</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <label>Items Per Page</label>
-                    <input type="number" class="setting-input" value="25" min="10" max="100">
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4><i class="fas fa-database"></i> Data Management</h4>
-                <div class="setting-item">
-                    <label>Export Inventory Data</label>
-                    <button class="setting-btn">CSV Export</button>
-                </div>
-                <div class="setting-item">
-                    <label>Backup System</label>
-                    <button class="setting-btn">Create Backup</button>
-                </div>
-            </div>
-
-            <div class="settings-actions">
-                <button class="menu-btns save-btn"><i class="fas fa-save"></i> Save Changes</button>
-                <button class="menu-btns cancel-btn"><i class="fas fa-times"></i> Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Help Modal -->
-    <div id="help-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3><i class="fas fa-question-circle"></i> Help Center</h3>
-
-            <div class="help-section">
-                <h4><i class="fas fa-book"></i> Documentation</h4>
-                <ul class="help-list">
-                    <li><a href="#"><i class="fas fa-file-alt"></i> User Manual</a></li>
-                    <li><a href="#"><i class="fas fa-video"></i> Video Tutorials</a></li>
-                    <li><a href="#"><i class="fas fa-chart-bar"></i> Inventory Management Guide</a></li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h4><i class="fas fa-headset"></i> Support</h4>
-                <div class="contact-info">
-                    <p><i class="fas fa-envelope"></i> Email: support@j2ehealthcare.com</p>
-                    <p><i class="fas fa-phone"></i> Phone: (02) 8123-4567</p>
-                    <p><i class="fas fa-clock"></i> Hours: Mon-Fri, 9AM-5PM</p>
-                </div>
-            </div>
-
-            <div class="help-section">
-                <h4><i class="fas fa-bug"></i> Report an Issue</h4>
-                <form class="issue-form">
-                    <div class="form-group">
-                        <label>Subject</label>
-                        <input type="text" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea class="form-textarea" rows="4"></textarea>
-                    </div>
-                    <button type="submit" class="menu-btns"><i class="fas fa-paper-plane"></i> Submit</button>
                 </form>
             </div>
         </div>
@@ -1207,208 +1156,66 @@ $username = $_SESSION['username'];
         </div>
     </div>
 
-    <script>
-    // Dropdown and Modal functionality
-    function closeAllDropdowns(exceptElement) {
-        if (!exceptElement) {
-            document.getElementById('userDropdown').classList.remove('show');
-        }
+   <script>
+    // Update selected items count
+    function updateSelectedCount() {
+        const checkedBoxes = document.querySelectorAll('input[name="items[]"]:checked').length;
+        document.getElementById('selectedCount').textContent = `${checkedBoxes} selected`;
     }
-
-    // Menu dropdown toggle
-    document.getElementById('menuDropdown').addEventListener('click', function(e) {
-        e.stopPropagation();
-        const userDropdown = document.getElementById('userDropdown');
-        const wasOpen = userDropdown.classList.contains('show');
-
-        closeAllDropdowns();
-        if (!wasOpen) {
-            userDropdown.classList.add('show');
+    
+    // Initialize count on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+        
+        // Update count when checkboxes change
+        document.querySelectorAll('input[name="items[]"]').forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectedCount);
+        });
+        
+        // Search functionality
+        const searchInput = document.getElementById('itemSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const items = document.querySelectorAll('.item-row');
+                
+                items.forEach(item => {
+                    const itemName = item.querySelector('.item-name label').textContent.toLowerCase();
+                    const itemSku = item.querySelector('.item-sku').textContent.toLowerCase();
+                    
+                    if (itemName.includes(searchTerm) || itemSku.includes(searchTerm)) {
+                        item.style.display = 'contents';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
         }
-    });
-
-    // Close dropdowns when clicking elsewhere
-    document.addEventListener('click', function(e) {
-        closeAllDropdowns(e.target);
-    });
-
-    // Logout functionality with fetch API
-    document.getElementById('logoutBtn').addEventListener('click', function(e) {
-        e.preventDefault();
         
-        // Show loading toast
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.innerHTML = `
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Logging out...</span>
-        `;
-        document.body.appendChild(toast);
-        
-        fetch('../authenticate/logout.php')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    toast.innerHTML = `
-                        <i class="fas fa-check-circle"></i>
-                        <span>Logged out successfully!</span>
-                    `;
-                    setTimeout(() => {
-                        window.location.href = '../authenticate/login.php';
-                    }, 1500);
-                } else {
-                    toast.innerHTML = `
-                        <i class="fas fa-exclamation-circle"></i>
-                        <span>Logout failed. Please try again.</span>
-                    `;
-                    setTimeout(() => toast.remove(), 3000);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+        // Form validation
+        document.getElementById('categoryForm').onsubmit = function(e) {
+            const categoryName = document.getElementById('categoryName').value.trim();
+            
+            if (!categoryName) {
+                e.preventDefault();
+                const toast = document.createElement('div');
+                toast.className = 'toast error';
                 toast.innerHTML = `
                     <i class="fas fa-exclamation-circle"></i>
-                    <span>Error during logout. Please try again.</span>
+                    <span>Please enter a category name</span>
                 `;
-                setTimeout(() => toast.remove(), 3000);
-            });
-    });
-
-    // Search functionality
-    const searchInput = document.querySelector('.search-input') || document.getElementById('itemSearch');
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            const rows = document.querySelectorAll('tbody tr, .item-row');
-            
-            rows.forEach(row => {
-                let itemName, description, sku;
+                document.body.appendChild(toast);
                 
-                // Handle both table and grid layouts
-                if (row.querySelector('.item-name')) {
-                    itemName = row.querySelector('.item-name').textContent.toLowerCase();
-                    description = row.querySelector('td:nth-child(4)')?.textContent.toLowerCase() || '';
-                    sku = row.querySelector('td:nth-child(5)')?.textContent.toLowerCase() || 
-                          row.querySelector('.item-sku')?.textContent.toLowerCase() || '';
-                }
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
                 
-                if ((itemName && itemName.includes(searchTerm)) || 
-                    (description && description.includes(searchTerm)) || 
-                    (sku && sku.includes(searchTerm))) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        });
-    }
-
-    // Toast notification system
-    function showToast(message, type = "success") {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <i class="fas ${type === "success" ? "fa-check-circle" : "fa-exclamation-circle"}></i>
-            <span>${message}</span>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
-    }
-
-    // Main DOM ready handler for modals
-    document.addEventListener('DOMContentLoaded', function() {
-        // Get all modal elements
-        const modals = {
-            privacy: document.getElementById('privacy-policy-modal'),
-            terms: document.getElementById('terms-service-modal'),
-            settings: document.getElementById('settings-modal'),
-            help: document.getElementById('help-modal')
-        };
-
-        // Get all modal triggers
-        const modalTriggers = {
-            privacy: document.getElementById('privacy-policy-link'),
-            terms: document.getElementById('terms-service-link'),
-            settings: document.querySelector('.user-dropdown a[href="#settings"]'),
-            help: document.querySelector('.user-dropdown a[href="#help"]')
-        };
-
-        // Close buttons
-        const closeButtons = document.querySelectorAll('.close-modal');
-
-        // Function to close all modals
-        function closeAllModals() {
-            Object.values(modals).forEach(modal => {
-                if (modal) modal.style.display = 'none';
-            });
-        }
-
-        // Set up event listeners for modal triggers
-        Object.entries(modalTriggers).forEach(([key, trigger]) => {
-            if (trigger) {
-                trigger.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    closeAllDropdowns();
-                    closeAllModals();
-                    if (modals[key]) modals[key].style.display = 'block';
-                });
+                return false;
             }
-        });
-
-        // Set up event listeners for close buttons
-        closeButtons.forEach(button => {
-            button.addEventListener('click', closeAllModals);
-        });
-
-        // Close modals when clicking outside
-        window.addEventListener('click', function(e) {
-            Object.values(modals).forEach(modal => {
-                if (modal && e.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
-        });
-
-        // Form submission for category management
-        const categoryForm = document.getElementById('categoryForm');
-        if (categoryForm) {
-            categoryForm.onsubmit = function(e) {
-                e.preventDefault();
-                
-                // Get form values
-                const categoryName = document.getElementById('categoryName').value.trim();
-                const description = document.getElementById('categoryDescription')?.value.trim() || '';
-                
-                // Validate required fields
-                if (!categoryName) {
-                    showToast('Please enter a category name', 'error');
-                    return;
-                }
-                
-                // Show success toast
-                showToast(`New category "${categoryName}" created successfully!`);
-                
-                // Reset form
-                this.reset();
-                
-                // Uncheck all items
-                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-                
-                // Clear search if exists
-                if (searchInput) {
-                    searchInput.value = '';
-                    document.querySelectorAll('.item-row, tbody tr').forEach(row => {
-                        row.style.display = '';
-                    });
-                }
-            };
-        }
+            
+            return true;
+        };
     });
-</script>
+    </script>
 </body>
 </html>

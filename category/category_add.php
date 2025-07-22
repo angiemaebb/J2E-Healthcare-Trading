@@ -530,7 +530,7 @@ if (isset($_POST['logout'])) {
             <ul class="nav-menu">
                 <li><a href="../home/dashboard.php"><i class="fas fa-home"></i> Home</a></li>
                 <li><a href="../inventory/inventory.php"><i class="fas fa-boxes"></i> Inventory</a></li>
-                <li><a href="../category/category_add.php" class="active"><i class="fas fa-tags"></i> Category</a></li>
+                <li><a href="../category/viewCategories.php" class="active"><i class="fas fa-tags"></i> Category</a></li>
                 <li><a href="../user/user_management.php"><i class="fas fa-user"></i> User</a></li>
                 <li><a href="../invoice/invoice.php"><i class="fas fa-file-invoice"></i> Invoice</a></li>
             </ul>
