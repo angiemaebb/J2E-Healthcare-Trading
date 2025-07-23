@@ -166,12 +166,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch products with inventory data - ENHANCED QUERY
 try {
-    $product_query = "SELECT p.product_id, p.product_name, pi.unit_price, pi.quantity as stock_quantity 
-                     FROM products p
-                     JOIN product_inventory pi ON p.product_id = pi.product_id
-                     WHERE p.product_name IS NOT NULL AND p.product_name != ''
-                     ORDER BY p.product_name ASC
-                     LIMIT 100";
+    $product_query = "SELECT p.product_id, p.product_name, pi.unit_price, pi.quantity as stock_quantity, u.unit_name 
+                 FROM products p
+                 JOIN product_inventory pi ON p.product_id = pi.product_id
+                 LEFT JOIN units u ON p.unit_id = u.unit_id
+                 WHERE p.product_name IS NOT NULL AND p.product_name != ''
+                 ORDER BY p.product_name ASC";
     $stmt = $pdo->query($product_query);
     $products = $stmt->fetchAll();
     
@@ -1189,30 +1189,22 @@ try {
                                 <div class="product-suggestions"></div>
                             </td>
                             <td>
-                                <input type="number" name="items[0][quantity]" class="quantity" placeholder="Qty" min="1" step="1" value="1" required>
+                                <input type="number" name="items[0][quantity]" class="quantity" placeholder="Quantity" min="1" required>
                             </td>
                             <td>
-                                <input type="text" name="items[0][unit]" class="unit" placeholder="Unit" value="pcs">
+                                <input type="text" name="items[0][unit]" class="unit" placeholder="Unit" readonly>
                             </td>
                             <td>
-                                <div class="amount-input">
-                                    <input type="number" name="items[0][unit_price]" class="unit-price" placeholder="0.00" min="0" step="0.01" required>
-                                </div>
+                                <input type="number" name="items[0][unit_price]" class="unit-price" placeholder="Unit Price" step="0.01" required readonly>
                             </td>
                             <td>
-                                <div class="amount-input">
-                                    <input type="number" name="items[0][discount]" class="discount" placeholder="0.00" min="0" step="0.01" value="0">
-                                </div>
+                                <input type="number" name="items[0][discount]" class="discount" placeholder="Discount" value="0" min="0" step="0.01">
                             </td>
                             <td>
-                                <div class="amount-input">
-                                    <input type="number" class="amount" placeholder="0.00" readonly>
-                                </div>
+                                <input type="number" name="items[0][amount]" class="amount" placeholder="Amount" readonly>
                             </td>
                             <td>
-                                <button type="button" class="btn-remove-item" disabled>
-                                    <i class="material-icons">delete</i>
-                                </button>
+                                <button type="button" class="btn-remove-item"><i class="material-icons">delete</i></button>
                             </td>
                         </tr>
                     </tbody>
@@ -1545,6 +1537,82 @@ try {
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Store products data from PHP
+            const products = <?php echo json_encode($products); ?>;
+            console.log("Products loaded:", products); // Debug logging
+            
+            // Function to handle product selection and auto-populate fields
+            function handleProductSelection(input, product) {
+                const row = input.closest('tr');
+                
+                // Set product name
+                input.value = product.product_name;
+                
+                // Auto-populate unit
+                const unitInput = row.querySelector('input[name$="[unit]"]');
+                if (unitInput) {
+                    unitInput.value = product.unit_name || '';
+                }
+                
+                // Auto-populate unit price
+                const priceInput = row.querySelector('input[name$="[unit_price]"]');
+                if (priceInput) {
+                    priceInput.value = product.unit_price || '';
+                }
+                
+                // Update amount calculation
+                calculateRowAmount(row);
+            }
+
+            // Function to calculate row amount
+            function calculateRowAmount(row) {
+                const quantity = parseFloat(row.querySelector('input[name$="[quantity]"]').value) || 0;
+                const unitPrice = parseFloat(row.querySelector('input[name$="[unit_price]"]').value) || 0;
+                const discount = parseFloat(row.querySelector('input[name$="[discount]"]').value) || 0;
+                const amount = (quantity * unitPrice) - discount;
+                
+                row.querySelector('input[name$="[amount]"]').value = amount.toFixed(2);
+                calculateTotals();
+            }
+
+            // Product name input event handler
+            document.addEventListener('input', function(e) {
+                if (e.target.classList.contains('product-name')) {
+                    const input = e.target;
+                    const searchTerm = input.value.toLowerCase();
+                    const suggestionsDiv = input.nextElementSibling;
+                    
+                    // Clear previous suggestions
+                    suggestionsDiv.innerHTML = '';
+                    
+                    if (searchTerm.length < 2) {
+                        suggestionsDiv.style.display = 'none';
+                        return;
+                    }
+                    
+                    // Filter products based on search term
+                    const matches = products.filter(p => 
+                        p.product_name.toLowerCase().includes(searchTerm)
+                    );
+                    
+                    if (matches.length > 0) {
+                        suggestionsDiv.style.display = 'block';
+                        matches.forEach(product => {
+                            const div = document.createElement('div');
+                            div.className = 'product-suggestion';
+                            div.textContent = product.product_name;
+                            div.addEventListener('click', () => {
+                                handleProductSelection(input, product);
+                                suggestionsDiv.style.display = 'none';
+                            });
+                            suggestionsDiv.appendChild(div);
+                        });
+                    } else {
+                        suggestionsDiv.style.display = 'none';
+                    }
+                }
+            });
+
             // Enhanced Dropdown functionality
             function closeAllDropdowns(exceptElement) {
                 if (!exceptElement || !exceptElement.closest('.searchable-dropdown')) {
@@ -1600,10 +1668,6 @@ try {
             });
 
             // Original Invoice Form Functionality
-            // Product suggestions data
-            const products = <?php echo json_encode($products); ?>;
-            console.log("Products loaded:", products); // Debug output
-            
             // Add new item row
             let itemCount = 1;
             document.getElementById('add-item')?.addEventListener('click', function() {
@@ -1616,25 +1680,19 @@ try {
                         <div class="product-suggestions"></div>
                     </td>
                     <td>
-                        <input type="number" name="items[${itemCount}][quantity]" class="quantity" placeholder="Qty" min="1" step="1" value="1" required>
+                        <input type="number" name="items[${itemCount}][quantity]" class="quantity" placeholder="Quantity" min="1" required>
                     </td>
                     <td>
-                        <input type="text" name="items[${itemCount}][unit]" class="unit" placeholder="Unit" value="pcs">
+                        <input type="text" name="items[${itemCount}][unit]" class="unit" placeholder="Unit" readonly>
                     </td>
                     <td>
-                        <div class="amount-input">
-                            <input type="number" name="items[${itemCount}][unit_price]" class="unit-price" placeholder="0.00" min="0" step="0.01" required>
-                        </div>
+                        <input type="number" name="items[${itemCount}][unit_price]" class="unit-price" placeholder="Unit Price" step="0.01" required readonly>
                     </td>
                     <td>
-                        <div class="amount-input">
-                            <input type="number" name="items[${itemCount}][discount]" class="discount" placeholder="0.00" min="0" step="0.01" value="0">
-                        </div>
+                        <input type="number" name="items[${itemCount}][discount]" class="discount" placeholder="Discount" value="0" min="0" step="0.01">
                     </td>
                     <td>
-                        <div class="amount-input">
-                            <input type="number" class="amount" placeholder="0.00" readonly>
-                        </div>
+                        <input type="number" name="items[${itemCount}][amount]" class="amount" placeholder="Amount" readonly>
                     </td>
                     <td>
                         <button type="button" class="btn-remove-item">
@@ -1746,9 +1804,9 @@ try {
                         productInput.value = product.product_name;
                         unitPriceInput.value = price;
                         
-                        // Auto-fill unit if empty
-                        if (unitInput && !unitInput.value) {
-                            unitInput.value = 'pcs'; // Default unit
+                        // Auto-fill unit with unit_symbol or unit_name from the product
+                        if (unitInput) {
+                            unitInput.value = product.unit_symbol || product.unit_name || '';
                         }
                         
                         suggestionsDiv.style.display = 'none';
